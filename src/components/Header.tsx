@@ -1,6 +1,8 @@
-import { GraduationCap, BookOpen, Users, LayoutGrid, Sun, Moon, Droplet } from 'lucide-react';
+import { GraduationCap, BookOpen, Users, LayoutGrid, Sun, Moon, Droplet, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useState, useEffect } from 'react';
+import { auth } from '../lib/firebase';
+import { signOut } from 'firebase/auth';
 
 interface HeaderProps {
   onCreateGroup: () => void;
@@ -106,6 +108,16 @@ export function Header({
           >
             <LayoutGrid className="h-4 w-4" />
             <span className="hidden md:inline">Barcha guruhlar</span>
+          </button>
+
+          <div className="w-px h-6 bg-white/10 mx-1 hidden sm:block"></div>
+
+          <button
+            onClick={() => signOut(auth)}
+            className="w-10 h-10 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-500 hover:text-red-400 border border-red-500/20 transition-colors"
+            title="Tizimdan chiqish"
+          >
+            <LogOut className="w-5 h-5" />
           </button>
         </div>
       </div>
