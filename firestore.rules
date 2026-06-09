@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidGroup(data) {
+      return data.keys().hasAll(['userId', 'name', 'time', 'days', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 100
+        && data.time is string && data.time.size() <= 20
+        && data.days is list && data.days.size() <= 7
+        && (data.days.size() == 0 || data.days[0] is number)
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['userId', 'fullName', 'phone', 'groupIds', 'joinDate', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.fullName is string && data.fullName.size() <= 100
+        && data.phone is string && data.phone.size() <= 50
+        && data.groupIds is list && data.groupIds.size() <= 50
+        && (data.groupIds.size() == 0 || data.groupIds[0] is string)
+        && data.joinDate is string && data.joinDate.size() <= 50
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['userId', 'studentId', 'amount', 'month', 'date', 'note'])
+        && data.userId == request.auth.uid
+        && data.studentId is string
+        && data.amount is number
+        && data.month is string && data.month.size() <= 20
+        && data.date is string && data.date.size() <= 50
+        && data.note is string && data.note.size() <= 500;
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['userId', 'groupId_month', 'records'])
+        && data.userId == request.auth.uid
+        && data.groupId_month is string && data.groupId_month.size() <= 100
+        && data.records is map;
+    }
+
+    match /groups/{groupId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidGroup(incoming());
+    }
+
+    match /students/{studentId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidStudent(incoming());
+    }
+
+    match /payments/{paymentId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidPayment(incoming());
+    }
+
+    match /attendance/{attendanceId} {
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidAttendance(incoming());
+    }
+  }
+}

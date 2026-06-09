@@ -1,0 +1,6 @@
+{
+  "name": "EduTrack",
+  "description": "Davomat va to'lovlar tizimi",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

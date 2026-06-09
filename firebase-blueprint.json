@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "Group": {
+      "title": "Group",
+      "description": "A group of students with a schedule",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "time": { "type": "string" },
+        "days": { "type": "array", "items": { "type": "number" } },
+        "monthlyPayment": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "archived": { "type": "boolean" },
+        "archivedAt": { "type": "string" },
+        "deletedAt": { "type": "string" },
+        "history": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      },
+      "required": ["userId", "name", "time", "days", "createdAt"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "A student in the system",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phone": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "school": { "type": "string" },
+        "grade": { "type": "string" },
+        "groupIds": { "type": "array", "items": { "type": "string" } },
+        "joinDate": { "type": "string" },
+        "firstMonthPayment": { "type": "number" },
+        "monthlyPayment": { "type": "number" },
+        "groupPricing": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "archived": { "type": "boolean" },
+        "archivedAt": { "type": "string" },
+        "deletedAt": { "type": "string" },
+        "history": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      },
+      "required": ["userId", "fullName", "phone", "groupIds", "joinDate", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Payment record for a student",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "amount": { "type": "number" },
+        "month": { "type": "string" },
+        "date": { "type": "string" },
+        "note": { "type": "string" },
+        "editDates": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "studentId", "amount", "month", "date", "note"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Attendance record for a group inside a specific month",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "groupId_month": { "type": "string" },
+        "records": { "type": "object" }
+      },
+      "required": ["userId", "groupId_month", "records"]
+    }
+  },
+  "firestore": {
+    "groups/{groupId}": {
+      "schema": { "$ref": "#/entities/Group" },
+      "description": "Groups belonging to a user"
+    },
+    "students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "Students belonging to a user"
+    },
+    "payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/Payment" },
+      "description": "Payments tracked by a user"
+    },
+    "attendance/{attendanceId}": {
+      "schema": { "$ref": "#/entities/Attendance" },
+      "description": "Attendance per group-month tracked by a user"
+    }
+  }
+}
