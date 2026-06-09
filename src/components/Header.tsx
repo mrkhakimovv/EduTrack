@@ -57,27 +57,27 @@ export function Header({
   };
 
   return (
-    <header className="h-20 glass-card border-b border-white/10 flex items-center px-4 sm:px-8 justify-between shrink-0">
-      <div className="mx-auto w-full flex max-w-7xl items-center justify-between">
-        <div className="flex items-center gap-4">
+    <header className="min-h-[5rem] py-3 sm:py-0 glass-card border-b border-white/10 flex items-center px-3 sm:px-8 shrink-0">
+      <div className="mx-auto w-full flex flex-wrap max-w-7xl items-center justify-between gap-y-3">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button 
             onClick={toggleTheme}
-            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white border border-white/5 transition-colors"
+            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white border border-white/5 transition-colors"
             title="Mavzuni o'zgartirish"
           >
             {renderThemeIcon()}
           </button>
           
-          <div className="w-12 h-12 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-500/30">
-            <GraduationCap className="h-7 w-7 text-blue-500" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-500/30">
+            <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7 text-blue-500" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">EduTrack</h1>
-            <p className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest">Davomat va to'lovlar tizimi</p>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight">EduTrack</h1>
+            <p className="text-[9px] sm:text-[10px] sm:text-xs text-white/50 uppercase tracking-widest leading-none">Davomat va to'lovlar</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={onCreateGroup}
             className="hidden sm:flex px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium items-center gap-2 border border-blue-400/30 transition-colors"
@@ -96,17 +96,17 @@ export function Header({
           
           <button
             onClick={onShowAllStudents}
-            className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors border border-white/5"
+            className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 sm:px-3 sm:py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors border border-white/5 shrink-0"
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-4 w-4 sm:h-4 sm:w-4" />
             <span className="hidden md:inline">Barcha o'quvchilar</span>
           </button>
 
           <button
             onClick={onShowAllGroups}
-            className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors border border-white/5"
+            className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 sm:px-3 sm:py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors border border-white/5 shrink-0"
           >
-            <LayoutGrid className="h-4 w-4" />
+            <LayoutGrid className="h-4 w-4 sm:h-4 sm:w-4" />
             <span className="hidden md:inline">Barcha guruhlar</span>
           </button>
 
@@ -114,10 +114,10 @@ export function Header({
 
           <button
             onClick={() => signOut(auth)}
-            className="w-10 h-10 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-500 hover:text-red-400 border border-red-500/20 transition-colors"
+            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-500 hover:text-red-400 border border-red-500/20 transition-colors"
             title="Tizimdan chiqish"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>

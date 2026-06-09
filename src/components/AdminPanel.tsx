@@ -48,6 +48,7 @@ export function AdminPanel() {
         fullName,
         username: username.toLowerCase().trim(),
         role: 'teacher',
+        plainPassword: password,
         createdAt: new Date().toISOString()
       });
       
@@ -118,17 +119,19 @@ export function AdminPanel() {
                       <tr className="border-b border-white/10 text-white/50 text-sm">
                         <th className="pb-3 px-4 font-medium">Ism Familiya</th>
                         <th className="pb-3 px-4 font-medium">Username</th>
+                        <th className="pb-3 px-4 font-medium">Parol</th>
                         <th className="pb-3 px-4 font-medium text-right">Yaratilgan sana</th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.length === 0 ? (
-                        <tr><td colSpan={3} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
+                        <tr><td colSpan={4} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
                       ) : (
                         users.map(u => (
                           <tr key={u.uid} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                             <td className="py-4 px-4 font-medium">{u.fullName}</td>
                             <td className="py-4 px-4 font-mono text-sm text-primary/80">{u.username}</td>
+                            <td className="py-4 px-4 font-mono text-sm text-white/70">{u.plainPassword || '****'}</td>
                             <td className="py-4 px-4 text-sm text-white/50 text-right">{new Date(u.createdAt).toLocaleDateString('uz-UZ')}</td>
                           </tr>
                         ))
