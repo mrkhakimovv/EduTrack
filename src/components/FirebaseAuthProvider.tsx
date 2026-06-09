@@ -38,6 +38,13 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
+        if (u.isAnonymous) {
+          await auth.signOut();
+          setUser(null);
+          setAppUser(null);
+          setLoading(false);
+          return;
+        }
         setUser(u);
         const docRef = doc(db, 'users', u.uid);
         const docSnap = await getDoc(docRef);
