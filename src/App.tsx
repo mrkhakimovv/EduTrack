@@ -151,7 +151,7 @@ export default function App() {
     const group = data.groups.find(g => g.id === id);
     if (group) {
       const isArchiving = !group.archived;
-      updateGroup(id, { archived: isArchiving, archivedAt: isArchiving ? new Date().toISOString() : undefined });
+      updateGroup(id, { archived: isArchiving, archivedAt: isArchiving ? new Date().toISOString() : null as any });
     }
   };
 
@@ -159,7 +159,7 @@ export default function App() {
     const student = data.students.find(s => s.id === id);
     if (student) {
       const isArchiving = !student.archived;
-      updateStudent(id, { archived: isArchiving, archivedAt: isArchiving ? new Date().toISOString() : undefined });
+      updateStudent(id, { archived: isArchiving, archivedAt: isArchiving ? new Date().toISOString() : null as any });
     }
   };
 

@@ -97,8 +97,11 @@ export function useAppData() {
       }];
     }
     
+    // Deep clean undefined to avoid Firestore errors
+    const cleanUpdates = JSON.parse(JSON.stringify({ ...updates, history }));
+    
     try {
-      await updateDoc(doc(db, 'groups', id), { ...updates, history });
+      await updateDoc(doc(db, 'groups', id), cleanUpdates);
     } catch (e) { handleFirestoreError(e, OperationType.UPDATE, `groups/${id}`); }
   }, [data]);
 
@@ -117,7 +120,7 @@ export function useAppData() {
       deletedAt: g.deletedAt
     }];
     try {
-      await updateDoc(doc(db, 'groups', id), { deletedAt: new Date().toISOString(), history });
+      await updateDoc(doc(db, 'groups', id), JSON.parse(JSON.stringify({ deletedAt: new Date().toISOString(), history })));
     } catch (e) { handleFirestoreError(e, OperationType.UPDATE, `groups/${id}`); }
   }, [data]);
 
@@ -125,7 +128,7 @@ export function useAppData() {
     if (!auth.currentUser) return;
     const newId = generateId();
     try {
-      await setDoc(doc(db, 'students', newId), { ...student, userId: auth.currentUser.uid, createdAt: new Date().toISOString() });
+      await setDoc(doc(db, 'students', newId), JSON.parse(JSON.stringify({ ...student, userId: auth.currentUser.uid, createdAt: new Date().toISOString() })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `students/${newId}`); }
   }, []);
 
@@ -154,8 +157,12 @@ export function useAppData() {
         deletedAt: s.deletedAt
       }];
     }
+    
+    // Deep clean undefined
+    const cleanUpdates = JSON.parse(JSON.stringify({ ...updates, history }));
+    
     try {
-      await updateDoc(doc(db, 'students', id), { ...updates, history });
+      await updateDoc(doc(db, 'students', id), cleanUpdates);
     } catch (e) { handleFirestoreError(e, OperationType.UPDATE, `students/${id}`); }
   }, [data]);
 
@@ -180,7 +187,7 @@ export function useAppData() {
       deletedAt: s.deletedAt
     }];
     try {
-      await updateDoc(doc(db, 'students', id), { deletedAt: new Date().toISOString(), history });
+      await updateDoc(doc(db, 'students', id), JSON.parse(JSON.stringify({ deletedAt: new Date().toISOString(), history })));
     } catch (e) { handleFirestoreError(e, OperationType.UPDATE, `students/${id}`); }
   }, [data]);
 
@@ -212,14 +219,14 @@ export function useAppData() {
     if (!auth.currentUser) return;
     const newId = generateId();
     try {
-      await setDoc(doc(db, 'payments', newId), { ...payment, userId: auth.currentUser.uid, date: new Date().toISOString() });
+      await setDoc(doc(db, 'payments', newId), JSON.parse(JSON.stringify({ ...payment, userId: auth.currentUser.uid, date: new Date().toISOString() })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `payments/${newId}`); }
   }, []);
 
   const updatePayment = useCallback(async (id: string, updates: Partial<Omit<PaymentRecord, "id" | "date">>) => {
     if (!auth.currentUser) return;
     try {
-      await updateDoc(doc(db, 'payments', id), updates);
+      await updateDoc(doc(db, 'payments', id), JSON.parse(JSON.stringify(updates)));
     } catch (e) { handleFirestoreError(e, OperationType.UPDATE, `payments/${id}`); }
   }, []);
 

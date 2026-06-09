@@ -29,7 +29,7 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
   const archivedCount = data.students.filter(s => !s.deletedAt && s.archived).length;
 
   return (
-    <div className="fixed inset-0 z-40 bg-sys-base/95 backdrop-blur-md overflow-y-auto w-full h-full">
+    <div className="fixed inset-0 z-[60] bg-sys-base/95 backdrop-blur-md overflow-y-auto w-full h-full">
       <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
         
         <div className="flex flex-col sm:flex-row items-center justify-between mb-8 sticky top-0 py-4 bg-sys-base/80 backdrop-blur z-10 border-b border-white/10 gap-4">
