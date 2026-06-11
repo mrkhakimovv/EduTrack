@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AppData, Group, Student, PaymentRecord, AttendanceRecord, generateId } from '../lib/store';
 import { db, auth } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/errorHelper';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, query, where, deleteField } from 'firebase/firestore';
 
 export function useAppData() {
   const [data, setData] = useState<AppData | null>(null);
@@ -194,23 +194,16 @@ export function useAppData() {
   const setAttendance = useCallback(async (groupId: string, monthKey: string, studentId: string, date: string, status: "present" | "absent" | undefined) => {
     if (!data || !auth.currentUser) return;
     const key = `${groupId}_${monthKey}`;
-    const currentMonthRecord = data.attendance[key] || {};
-    const currentStudentRecord = currentMonthRecord[studentId] || {};
-
-    const newStudentRecord = { ...currentStudentRecord };
-    if (status === undefined) {
-      delete newStudentRecord[date];
-    } else {
-      newStudentRecord[date] = status;
-    }
-
-    const newMonthRecord = { ...currentMonthRecord, [studentId]: newStudentRecord };
     const docId = `att_${key}`;
     try {
       await setDoc(doc(db, 'attendance', docId), {
         userId: auth.currentUser.uid,
         groupId_month: key,
-        records: newMonthRecord
+        records: {
+          [studentId]: {
+            [date]: status === undefined ? deleteField() : status
+          }
+        }
       }, { merge: true });
     } catch (e) { handleFirestoreError(e, OperationType.WRITE, `attendance/${docId}`); }
   }, [data]);

@@ -136,7 +136,7 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors"
-                  placeholder="admin"
+                  placeholder="username"
                 />
               </div>
             </div>
