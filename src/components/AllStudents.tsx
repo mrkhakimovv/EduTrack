@@ -116,7 +116,7 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
                 </div>
 
                 <div className="text-sm text-white/60 space-y-2 mb-4">
-                  {student.phone && <div className="flex gap-2"><span>📞</span> <span className="text-white/80">{student.phone}</span></div>}
+                  {student.phone && <div className="flex gap-2"><span>📞</span> <a href={`tel:${student.phone.replace(/[^0-9+]/g, '')}`} className="text-white/80 hover:text-white hover:underline transition-colors">{student.phone}</a></div>}
                   {student.school && <div className="flex gap-2"><span>🏫</span> <span className="text-white/80">{student.school} {student.grade && `(${student.grade})`}</span></div>}
                   <div className="flex gap-2"><span>📅</span> <span>{student.joinDate} dan beri</span></div>
                   <div className="flex gap-2"><span>💰</span> <span className="text-white/90 font-medium">{formatSum(student.monthlyPayment)} / oy</span></div>

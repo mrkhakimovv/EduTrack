@@ -270,13 +270,6 @@ export default function App() {
         />
       )}
 
-      <footer className="h-12 glass-card border-t border-white/5 flex items-center px-4 sm:px-8 text-[11px] text-white/30 justify-between shrink-0">
-        <div>Tizim holati: <span className="text-emerald-500">Onlayn</span></div>
-        <div className="hidden sm:flex gap-6 uppercase tracking-wider">
-          <span>Barcha o'quvchilar: {activeData.students.length}</span>
-          <span>Shu oygi tushum: {activeData.payments.filter(p => p.month === monthKey).reduce((s, p) => s + p.amount, 0).toLocaleString('uz-UZ')} so'm</span>
-        </div>
-      </footer>
     </div>
   );
 }
