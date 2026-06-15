@@ -54,7 +54,9 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance }: At
     setAttendance(selectedGroupId, monthKey, studentId, date, nextStatus);
   };
 
-  if (data.groups.length === 0) {
+  const activeGroups = data.groups.filter(g => !g.deletedAt && !g.archived);
+
+  if (activeGroups.length === 0) {
     return <div className="text-center text-white/50 py-8">Hali guruhlar yo'q</div>;
   }
 
@@ -63,8 +65,8 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance }: At
       <div className="flex flex-col gap-4 h-full p-6 overflow-y-auto custom-scrollbar">
         <h2 className="text-xl font-bold text-white/90 mb-2">Guruhni tanlang</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-none">
-          {data.groups.map(g => {
-            const studentsCount = data.students.filter(s => s.groupIds.includes(g.id)).length;
+          {activeGroups.map(g => {
+            const studentsCount = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds.includes(g.id)).length;
             const daysStr = g.days.map(d => DAY_NAMES_SHORT[d]).join('-');
             return (
               <button
