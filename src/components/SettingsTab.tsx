@@ -96,13 +96,13 @@ export function SettingsTab() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-white/70 mb-1">Yangi login</label>
+          <label className="block text-sm font-medium text-white/70 mb-1">Yangi username</label>
           <input
             type="text"
             value={login}
             onChange={(e) => setLogin(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
-            placeholder="Yangi login kiriting"
+            placeholder="Yangi username kiriting"
           />
         </div>
         
