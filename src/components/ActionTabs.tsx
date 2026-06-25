@@ -1,8 +1,8 @@
-import { ClipboardCheck, CreditCard, AlertTriangle, BarChart3, Ban } from 'lucide-react';
+import { ClipboardCheck, CreditCard, AlertTriangle, BarChart3, Ban, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { ReactNode } from 'react';
 
-export type TabId = 'attendance' | 'payment' | 'debtors' | 'blacklist' | 'stats';
+export type TabId = 'attendance' | 'payment' | 'debtors' | 'blacklist' | 'stats' | 'settings';
 
 interface ActionTabsProps {
   activeTab: TabId;
@@ -16,6 +16,7 @@ const TABS = [
   { id: 'debtors', label: 'Qarzdorlar', icon: AlertTriangle },
   { id: 'blacklist', label: "Qora ro'yxat", icon: Ban },
   { id: 'stats', label: 'Statistika', icon: BarChart3 },
+  { id: 'settings', label: 'Sozlamalar', icon: Settings },
 ] as const;
 
 export function ActionTabs({ activeTab, onTabChange, children }: ActionTabsProps) {

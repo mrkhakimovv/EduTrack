@@ -8,6 +8,7 @@ import { PaymentTab } from './components/PaymentTab';
 import { DebtorsTab } from './components/DebtorsTab';
 import { BlacklistTab } from './components/BlacklistTab';
 import { StatsTab } from './components/StatsTab';
+import { SettingsTab } from './components/SettingsTab';
 import { GroupModal } from './components/GroupModal';
 import { StudentModal } from './components/StudentModal';
 import { AllStudents } from './components/AllStudents';
@@ -224,6 +225,9 @@ export default function App() {
                   deletePayment={deletePayment}
                   archivedStudentsCount={monthArchivedStudentsCount}
                 />
+              )}
+              {activeTab === 'settings' && (
+                <SettingsTab />
               )}
             </ActionTabs>
           </div>
