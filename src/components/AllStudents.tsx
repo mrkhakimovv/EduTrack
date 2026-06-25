@@ -13,8 +13,26 @@ interface AllStudentsProps {
 
 export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllStudentsProps) {
   const [search, setSearch] = useState("");
+  const [schoolFilter, setSchoolFilter] = useState("all");
+  const [gradeFilter, setGradeFilter] = useState("all");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'faol' | 'arxiv'>('faol');
+
+  const uniqueSchools = useMemo(() => {
+    const schools = new Set<string>();
+    data.students.forEach(s => {
+      if (s.school) schools.add(s.school);
+    });
+    return Array.from(schools).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+  }, [data.students]);
+
+  const uniqueGrades = useMemo(() => {
+    const grades = new Set<string>();
+    data.students.forEach(s => {
+      if (s.grade) grades.add(s.grade);
+    });
+    return Array.from(grades).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+  }, [data.students]);
 
   const filteredStudents = useMemo(() => {
     let result = data.students.filter(s => !s.deletedAt && (activeTab === 'faol' ? !s.archived : s.archived));
@@ -22,8 +40,14 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
       const lower = search.toLowerCase();
       result = result.filter(s => s.fullName.toLowerCase().includes(lower));
     }
+    if (schoolFilter !== 'all') {
+      result = result.filter(s => s.school === schoolFilter);
+    }
+    if (gradeFilter !== 'all') {
+      result = result.filter(s => s.grade === gradeFilter);
+    }
     return result;
-  }, [search, data.students, activeTab]);
+  }, [search, schoolFilter, gradeFilter, data.students, activeTab]);
 
   const activeCount = data.students.filter(s => !s.deletedAt && !s.archived).length;
   const archivedCount = data.students.filter(s => !s.deletedAt && s.archived).length;
@@ -61,15 +85,39 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
           </button>
         </div>
 
-        <div className="relative mb-8 max-w-xl mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-          <input
-            type="text"
-            placeholder="O'quvchini izlash..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 text-lg shadow-xl shadow-black/20"
-          />
+        <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-4xl mx-auto">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
+            <input
+              type="text"
+              placeholder="O'quvchini izlash..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 text-lg shadow-xl shadow-black/20"
+            />
+          </div>
+          <div className="flex gap-4">
+            <select
+              value={schoolFilter}
+              onChange={e => setSchoolFilter(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 [&>option]:bg-sys-base"
+            >
+              <option value="all">Barcha maktablar</option>
+              {uniqueSchools.map(school => (
+                <option key={school} value={school}>{school}-maktab</option>
+              ))}
+            </select>
+            <select
+              value={gradeFilter}
+              onChange={e => setGradeFilter(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 [&>option]:bg-sys-base"
+            >
+              <option value="all">Barcha sinflar</option>
+              {uniqueGrades.map(grade => (
+                <option key={grade} value={grade}>{grade}-sinf</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
