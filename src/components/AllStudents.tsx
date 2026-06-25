@@ -93,7 +93,7 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
                       </button>
                     </div>
                   ) : (
-                    <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 transition-opacity">
                       <button onClick={() => onEdit(student.id)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded transition-colors" title="Tahrirlash">
                         <Pencil className="h-4 w-4" />
                       </button>
