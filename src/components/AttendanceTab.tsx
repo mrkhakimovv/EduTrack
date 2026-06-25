@@ -185,7 +185,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                       </div>
                       <button
                         onClick={() => toggleArchiveStudent(student.id)}
-                        className="ml-2 w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors opacity-0 group-hover/row:opacity-100"
+                        className="ml-2 w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
                         title="Arxivlash"
                       >
                         <Archive className="h-4 w-4" />
