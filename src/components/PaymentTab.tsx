@@ -14,7 +14,7 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   
   const [amountInput, setAmountInput] = useState("");
-  const [noteInput, setNoteInput] = useState("");
+  const [paymentType, setPaymentType] = useState<"Naqd" | "Karta" | "">("");
   const [successMsg, setSuccessMsg] = useState("");
 
   const filteredStudents = useMemo(() => {
@@ -45,7 +45,7 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
       studentId: selectedStudent.id,
       amount,
       month: monthKey,
-      note: noteInput.trim()
+      note: paymentType // Use paymentType as note directly
     });
 
     setSuccessMsg("To'lov muvaffaqiyatli saqlandi!");
@@ -53,7 +53,7 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
     
     setSelectedStudent(null);
     setAmountInput("");
-    setNoteInput("");
+    setPaymentType("");
     setSearch("");
   };
 
@@ -86,8 +86,8 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
-            <div className="sm:col-span-4">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+            <div className="sm:col-span-5">
               <label className="block text-xs text-white/50 mb-1 ml-1">Summa (so'm)</label>
               <input
                 type="number"
@@ -97,21 +97,33 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
                 className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary/50"
               />
             </div>
-            <div className="sm:col-span-6">
-              <label className="block text-xs text-white/50 mb-1 ml-1">Izoh (ixtiyoriy)</label>
-              <input
-                type="text"
-                value={noteInput}
-                onChange={e => setNoteInput(e.target.value)}
-                placeholder="Naqd, karta..."
-                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary/50"
-              />
+            <div className="sm:col-span-5 flex justify-end">
+                <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 w-full h-[42px]">
+                  <button
+                    onClick={() => setPaymentType(paymentType === "Naqd" ? "" : "Naqd")}
+                    className={cn(
+                      "flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                      paymentType === "Naqd" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                    )}
+                  >
+                    Naqd
+                  </button>
+                  <button
+                    onClick={() => setPaymentType(paymentType === "Karta" ? "" : "Karta")}
+                    className={cn(
+                      "flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                      paymentType === "Karta" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                    )}
+                  >
+                    Karta
+                  </button>
+                </div>
             </div>
             <div className="sm:col-span-2 flex items-end">
               <button
                 onClick={handlePay}
                 disabled={!amountInput || parseInt(amountInput) <= 0}
-                className="w-full bg-primary text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+                className="w-full h-[42px] bg-primary text-white font-medium px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
               >
                 To'lash
               </button>

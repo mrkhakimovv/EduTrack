@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft } from 'lucide-react';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive } from 'lucide-react';
 
 interface AttendanceTabProps {
   data: AppData;
@@ -9,9 +9,10 @@ interface AttendanceTabProps {
   year: number;
   month: number; // 0-11
   setAttendance: (groupId: string, monthKey: string, studentId: string, date: string, status: "present" | "absent" | undefined) => void;
+  toggleArchiveStudent: (id: string) => void;
 }
 
-export function AttendanceTab({ data, monthKey, year, month, setAttendance }: AttendanceTabProps) {
+export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent }: AttendanceTabProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
 
   const group = data.groups.find(g => g.id === selectedGroupId);
@@ -167,19 +168,28 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance }: At
                 
                 return (
                   <tr key={student.id} className="hover:bg-white/5 transition-colors group/row">
-                    <td className="p-4 flex flex-col sticky left-0 z-20 bg-sys-base group-hover/row:bg-sys-hover transition-colors border-r border-white/5 md:border-none shadow-[1px_0_0_rgba(255,255,255,0.05)]">
-                      <span className={cn("text-sm font-medium", isDebtor ? "debt-glow text-white" : "text-white/90")}>
-                        {student.fullName}
-                      </span>
-                      {isDebtor ? (
-                        <span className="text-[10px] text-destructive font-medium tracking-tight mt-0.5">
-                          {new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz
+                    <td className="p-4 flex items-center justify-between sticky left-0 z-20 bg-sys-base group-hover/row:bg-sys-hover transition-colors border-r border-white/5 md:border-none shadow-[1px_0_0_rgba(255,255,255,0.05)]">
+                      <div className="flex flex-col">
+                        <span className={cn("text-sm font-medium", isDebtor ? "debt-glow text-white" : "text-white/90")}>
+                          {student.fullName}
                         </span>
-                      ) : (
-                        <span className="text-[10px] text-accent font-medium tracking-tight mt-0.5">
-                          To'langan
-                        </span>
-                      )}
+                        {isDebtor ? (
+                          <span className="text-[10px] text-destructive font-medium tracking-tight mt-0.5">
+                            {new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-accent font-medium tracking-tight mt-0.5">
+                            To'langan
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => toggleArchiveStudent(student.id)}
+                        className="ml-2 w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors opacity-0 group-hover/row:opacity-100"
+                        title="Arxivlash"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </button>
                     </td>
                     {lessonDates.map(date => {
                       const checkDate = new Date(date).getTime();
