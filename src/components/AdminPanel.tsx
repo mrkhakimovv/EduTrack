@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, firebaseConfig } from '../lib/firebase';
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { LogOut, UserPlus, Users, Loader2 } from 'lucide-react';
+import { LogOut, UserPlus, Users, Loader2, X, Wallet, Bell, BellOff } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 
 const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
@@ -13,10 +13,17 @@ export function AdminPanel() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  const MONTHS = [
+    'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+    'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'
+  ];
 
   const loadUsers = async () => {
     setLoading(true);
@@ -49,6 +56,7 @@ export function AdminPanel() {
         username: username.toLowerCase().trim(),
         role: 'teacher',
         plainPassword: password,
+        paymentStatus: 'unpaid',
         createdAt: new Date().toISOString()
       });
       
@@ -64,8 +72,126 @@ export function AdminPanel() {
     }
   };
 
+  const toggleAppPayment = async (uid: string, year: number, monthIndex: number) => {
+    try {
+      const currentPayments = selectedUser.appPayments || {};
+      const key = `${year}-${monthIndex}`;
+      const isPaid = currentPayments[key];
+      
+      const newPayments = {
+        ...currentPayments,
+        [key]: !isPaid
+      };
+
+      await updateDoc(doc(db, 'users', uid), {
+        appPayments: newPayments
+      });
+      
+      setSelectedUser((prev: any) => ({ ...prev, appPayments: newPayments }));
+      setUsers(users.map(u => u.uid === uid ? { ...u, appPayments: newPayments } : u));
+    } catch (err) {
+      console.error(err);
+      alert("To'lov holatini yangilashda xatolik");
+    }
+  };
+
+  const toggleUnlimitedPayment = async (uid: string) => {
+    try {
+      const currentUnlimitedState = selectedUser.isUnlimited || false;
+      const newState = !currentUnlimitedState;
+
+      await updateDoc(doc(db, 'users', uid), {
+        isUnlimited: newState
+      });
+      
+      setSelectedUser((prev: any) => ({ ...prev, isUnlimited: newState }));
+      setUsers(users.map(u => u.uid === uid ? { ...u, isUnlimited: newState } : u));
+    } catch (err) {
+      console.error(err);
+      alert("Cheksiz to'lov holatini yangilashda xatolik");
+    }
+  };
+
   return (
     <div className="min-h-screen gradient-bg p-4 sm:p-8 text-white relative">
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-sys-base border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">O'qituvchi akkaunti</h3>
+              <button onClick={() => setSelectedUser(null)} className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/50 mb-1">Ism Familiya</label>
+                <div className="bg-white/5 rounded-xl px-4 py-3 font-medium">{selectedUser.fullName}</div>
+              </div>
+              <div>
+                <label className="block text-sm text-white/50 mb-1">Username</label>
+                <div className="bg-white/5 rounded-xl px-4 py-3 font-mono text-primary/80">{selectedUser.username}</div>
+              </div>
+              <div>
+                <label className="block text-sm text-white/50 mb-1">Parol</label>
+                <div className="bg-white/5 rounded-xl px-4 py-3 font-mono">{selectedUser.plainPassword || '****'}</div>
+              </div>
+              
+              <div className="pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                  <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+                    <label className="text-sm text-white/50 flex items-center gap-2">
+                      <Wallet className="w-4 h-4" /> Dasturni ishlatish uchun to'lov holati
+                    </label>
+                    <button
+                      onClick={() => toggleUnlimitedPayment(selectedUser.uid)}
+                      className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${selectedUser.isUnlimited ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-white/5 text-white/50 hover:text-white border border-transparent'}`}
+                    >
+                      Cheksiz
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 rounded-lg px-2 py-1 self-start sm:self-auto">
+                    <button 
+                      onClick={() => setSelectedYear(y => y - 1)}
+                      className="p-1 hover:bg-white/10 rounded transition-colors text-white/70"
+                    >
+                      &lt;
+                    </button>
+                    <span className="text-sm font-medium w-12 text-center">{selectedYear}</span>
+                    <button 
+                      onClick={() => setSelectedYear(y => y + 1)}
+                      className="p-1 hover:bg-white/10 rounded transition-colors text-white/70"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {MONTHS.map((month, index) => {
+                    const isPaid = selectedUser.appPayments?.[`${selectedYear}-${index}`];
+                    return (
+                      <button
+                        key={month}
+                        onClick={() => toggleAppPayment(selectedUser.uid, selectedYear, index)}
+                        className={`px-2 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
+                          isPaid
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : 'bg-white/5 text-white/50 hover:bg-white/10 border border-transparent'
+                        }`}
+                      >
+                        {month}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
@@ -119,7 +245,7 @@ export function AdminPanel() {
                       <tr className="border-b border-white/10 text-white/50 text-sm">
                         <th className="pb-3 px-4 font-medium">Ism Familiya</th>
                         <th className="pb-3 px-4 font-medium">Username</th>
-                        <th className="pb-3 px-4 font-medium">Parol</th>
+                        <th className="pb-3 px-4 font-medium text-center">To'lov holati</th>
                         <th className="pb-3 px-4 font-medium text-right">Yaratilgan sana</th>
                       </tr>
                     </thead>
@@ -128,10 +254,22 @@ export function AdminPanel() {
                         <tr><td colSpan={4} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
                       ) : (
                         users.map(u => (
-                          <tr key={u.uid} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <td className="py-4 px-4 font-medium">{u.fullName}</td>
+                          <tr 
+                            key={u.uid} 
+                            onClick={() => setSelectedUser(u)}
+                            className="border-b border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+                          >
+                            <td className="py-4 px-4 font-medium group-hover:text-primary transition-colors">{u.fullName}</td>
                             <td className="py-4 px-4 font-mono text-sm text-primary/80">{u.username}</td>
-                            <td className="py-4 px-4 font-mono text-sm text-white/70">{u.plainPassword || '****'}</td>
+                            <td className="py-4 px-4 text-center">
+                              {u.isUnlimited ? (
+                                <span className="inline-flex px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-xs font-medium">Cheksiz</span>
+                              ) : u.appPayments?.[`${new Date().getFullYear()}-${new Date().getMonth()}`] ? (
+                                <span className="inline-flex px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-xs font-medium">Joriy oy: To'langan</span>
+                              ) : (
+                                <span className="inline-flex px-2 py-1 rounded-md bg-red-500/10 text-red-400 text-xs font-medium">Joriy oy: To'lanmagan</span>
+                              )}
+                            </td>
                             <td className="py-4 px-4 text-sm text-white/50 text-right">{new Date(u.createdAt).toLocaleDateString('uz-UZ')}</td>
                           </tr>
                         ))

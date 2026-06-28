@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useAppData } from './hooks/use-app-data';
+import { useAuth } from './components/FirebaseAuthProvider';
+import { AlertTriangle } from 'lucide-react';
 import { Header } from './components/Header';
 import { MonthSelector } from './components/MonthSelector';
 import { ActionTabs, TabId } from './components/ActionTabs';
@@ -15,6 +17,7 @@ import { AllStudents } from './components/AllStudents';
 import { AllGroups } from './components/AllGroups';
 
 export default function App() {
+  const { appUser } = useAuth();
   const {
     data,
     addGroup, updateGroup, deleteGroup,
@@ -174,6 +177,15 @@ export default function App() {
       />
 
       <main className="flex-1 p-4 sm:p-6 flex flex-col gap-6 overflow-hidden max-w-[1400px] w-full mx-auto">
+        {appUser && appUser.role !== 'admin' && !appUser.isUnlimited && !appUser.appPayments?.[`${new Date().getFullYear()}-${new Date().getMonth()}`] && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 w-full shrink-0 shadow-lg shadow-black/10">
+            <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-red-400 font-medium">To'lov haqida ogohlantirish</h4>
+              <p className="text-white/70 text-sm mt-1">Siz joriy oy uchun dasturdan foydalanish to'lovini amalga oshirmadingiz. Iltimos, tez orada to'lovni amalga oshiring.</p>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col md:flex-row gap-6 h-full">
           <div className="w-full md:w-72 flex flex-col gap-6 shrink-0">
             <MonthSelector 
