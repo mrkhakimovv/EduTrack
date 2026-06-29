@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppData } from './hooks/use-app-data';
 import { useAuth } from './components/FirebaseAuthProvider';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, User } from 'lucide-react';
 import { Header } from './components/Header';
 import { MonthSelector } from './components/MonthSelector';
 import { ActionTabs, TabId } from './components/ActionTabs';
@@ -188,6 +188,16 @@ export default function App() {
         )}
         <div className="flex flex-col md:flex-row gap-6 h-full">
           <div className="w-full md:w-72 flex flex-col gap-6 shrink-0">
+            <div className="glass-card rounded-2xl p-4 flex items-center gap-3 border border-white/10">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <User className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-white mb-0.5">{appUser?.fullName || 'Foydalanuvchi'}</span>
+                <span className="text-[10px] text-white/50 font-mono tracking-widest uppercase">ID: {appUser?.teacherId || 'N/A'}</span>
+              </div>
+            </div>
+            
             <MonthSelector 
               year={selectedYear}
               month={selectedMonth}

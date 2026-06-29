@@ -1,4 +1,4 @@
-import { GraduationCap, BookOpen, Users, LayoutGrid, Sun, Moon, Droplet, LogOut, Menu, X, User } from 'lucide-react';
+import { GraduationCap, BookOpen, Users, LayoutGrid, Sun, Moon, Droplet, LogOut, Menu, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useState, useEffect } from 'react';
 import { auth } from '../lib/firebase';
@@ -82,17 +82,7 @@ export function Header({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 bg-white/5 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 border border-white/10 ml-auto sm:ml-4 sm:mr-auto">
-          <div className="hidden sm:flex w-8 h-8 rounded-full bg-primary/20 items-center justify-center shrink-0">
-            <User className="w-4 h-4 text-primary" />
-          </div>
-          <div className="flex flex-col text-right sm:text-left">
-            <span className="text-[10px] sm:text-sm font-medium text-white leading-none mb-1 max-w-[100px] sm:max-w-none truncate">{appUser?.fullName || 'Foydalanuvchi'}</span>
-            <span className="text-[9px] sm:text-[10px] text-white/50 font-mono tracking-widest uppercase leading-none">ID: {appUser?.teacherId || 'N/A'}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
           <button 
             onClick={toggleTheme}
             className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white border border-white/5 transition-colors"
