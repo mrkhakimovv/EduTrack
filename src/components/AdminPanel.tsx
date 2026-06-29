@@ -19,6 +19,7 @@ export function AdminPanel() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const MONTHS = [
     'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
@@ -98,6 +99,7 @@ export function AdminPanel() {
       setFullName("");
       setUsername("");
       setPassword("");
+      setIsCreateModalOpen(false);
       await loadUsers();
     } catch (err: any) {
       if (err.code === 'auth/network-request-failed') {
@@ -153,6 +155,43 @@ export function AdminPanel() {
 
   return (
     <div className="min-h-screen gradient-bg p-4 sm:p-8 text-white relative">
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card w-full max-w-md p-6 rounded-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-primary" />
+                Yangi foydalanuvchi
+              </h2>
+              <button 
+                onClick={() => setIsCreateModalOpen(false)}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5 text-white/50" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/70 mb-1 ml-1">Ism va Familiya</label>
+                <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors" placeholder="Ali Valiyev" />
+              </div>
+              <div>
+                <label className="block text-sm text-white/70 mb-1 ml-1">Username</label>
+                <input type="text" required value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors" placeholder="alivaliyev" />
+              </div>
+              <div>
+                <label className="block text-sm text-white/70 mb-1 ml-1">Parol</label>
+                <input type="text" required value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors" placeholder="••••" />
+              </div>
+              <button type="submit" disabled={creating} className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2">
+                {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yaratish'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-sys-base border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
@@ -249,37 +288,18 @@ export function AdminPanel() {
           </button>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <div className="glass-card p-6 rounded-2xl sticky top-8">
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-primary" />
-                Yangi foydalanuvchi
-              </h2>
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div>
-                  <label className="block text-sm text-white/70 mb-1 ml-1">Ism va Familiya</label>
-                  <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors" placeholder="Ali Valiyev" />
-                </div>
-                <div>
-                  <label className="block text-sm text-white/70 mb-1 ml-1">Username</label>
-                  <input type="text" required value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors" placeholder="alivaliyev" />
-                </div>
-                <div>
-                  <label className="block text-sm text-white/70 mb-1 ml-1">Parol</label>
-                  <input type="text" required value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors" placeholder="••••" />
-                </div>
-                <button type="submit" disabled={creating} className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2">
-                  {creating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yaratish'}
-                </button>
-              </form>
-            </div>
+        <div className="glass-card p-6 rounded-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Foydalanuvchilar ro'yxati (O'qituvchilar)</h2>
+            <button 
+              onClick={() => setIsCreateModalOpen(true)} 
+              className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              Yangi qo'shish
+            </button>
           </div>
-
-          <div className="lg:col-span-2">
-            <div className="glass-card p-6 rounded-2xl h-full">
-              <h2 className="text-xl font-semibold mb-6">Foydalanuvchilar ro'yxati (O'qituvchilar)</h2>
-              {loading ? (
+          {loading ? (
                 <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
               ) : (
                 <div className="overflow-x-auto">
@@ -324,8 +344,6 @@ export function AdminPanel() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
       </div>
     </div>
   );
