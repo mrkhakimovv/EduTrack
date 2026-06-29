@@ -100,7 +100,11 @@ export function AdminPanel() {
       setPassword("");
       await loadUsers();
     } catch (err: any) {
-      alert("Xatolik yuz berdi. Ehtimol bu username allaqachon mavjud.");
+      if (err.code === 'auth/network-request-failed') {
+        alert("Tarmoq xatosi: Iltimos internet aloqangizni tekshirib qaytadan urinib ko'ring.");
+      } else {
+        alert("Xatolik yuz berdi. Ehtimol bu username allaqachon mavjud.");
+      }
       console.error(err);
     } finally {
       setCreating(false);
