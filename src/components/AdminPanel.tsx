@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, firebaseConfig } from '../lib/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, query, where } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { LogOut, UserPlus, Users, Loader2, X, Wallet, Bell, BellOff } from 'lucide-react';
@@ -29,7 +29,29 @@ export function AdminPanel() {
     setLoading(true);
     try {
       const snap = await getDocs(collection(db, 'users'));
-      setUsers(snap.docs.map(d => d.data()).filter(u => u.role !== 'admin'));
+      const fetchedUsers = snap.docs.map(d => d.data());
+      
+      const updatedUsers = [];
+      for (const userData of fetchedUsers) {
+        if (userData.role !== 'admin') {
+          if (!userData.teacherId) {
+            let unique = false;
+            let newId = '';
+            while (!unique) {
+              newId = Math.floor(100000 + Math.random() * 900000).toString();
+              const isIdInFetched = fetchedUsers.some(u => u.teacherId === newId);
+              if (!isIdInFetched) {
+                 unique = true;
+              }
+            }
+            await updateDoc(doc(db, 'users', userData.uid), { teacherId: newId });
+            userData.teacherId = newId;
+          }
+          updatedUsers.push(userData);
+        }
+      }
+      
+      setUsers(updatedUsers);
     } catch (e) {
       console.error(e);
     }
@@ -47,11 +69,24 @@ export function AdminPanel() {
     try {
       const email = `${username.toLowerCase().trim()}@edutrack.local`;
       const pass = `${password}_system`;
+      
+      // Generate unique 6-digit ID
+      let unique = false;
+      let newId = '';
+      while (!unique) {
+        newId = Math.floor(100000 + Math.random() * 900000).toString();
+        const snap = await getDocs(query(collection(db, 'users'), where('teacherId', '==', newId)));
+        if (snap.empty) {
+          unique = true;
+        }
+      }
+
       const { user } = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
       await secondaryAuth.signOut();
       
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
+        teacherId: newId,
         fullName,
         username: username.toLowerCase().trim(),
         role: 'teacher',
@@ -125,6 +160,10 @@ export function AdminPanel() {
             </div>
             
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/50 mb-1">ID</label>
+                <div className="bg-white/5 rounded-xl px-4 py-3 font-mono text-xl tracking-widest text-primary font-bold">{selectedUser.teacherId || 'N/A'}</div>
+              </div>
               <div>
                 <label className="block text-sm text-white/50 mb-1">Ism Familiya</label>
                 <div className="bg-white/5 rounded-xl px-4 py-3 font-medium">{selectedUser.fullName}</div>
@@ -243,6 +282,7 @@ export function AdminPanel() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-white/10 text-white/50 text-sm">
+                        <th className="pb-3 px-4 font-medium">ID</th>
                         <th className="pb-3 px-4 font-medium">Ism Familiya</th>
                         <th className="pb-3 px-4 font-medium">Username</th>
                         <th className="pb-3 px-4 font-medium text-center">To'lov holati</th>
@@ -251,7 +291,7 @@ export function AdminPanel() {
                     </thead>
                     <tbody>
                       {users.length === 0 ? (
-                        <tr><td colSpan={4} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
+                        <tr><td colSpan={5} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
                       ) : (
                         users.map(u => (
                           <tr 
@@ -259,6 +299,7 @@ export function AdminPanel() {
                             onClick={() => setSelectedUser(u)}
                             className="border-b border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
                           >
+                            <td className="py-4 px-4 font-mono font-bold text-primary/90">{u.teacherId || '-'}</td>
                             <td className="py-4 px-4 font-medium group-hover:text-primary transition-colors">{u.fullName}</td>
                             <td className="py-4 px-4 font-mono text-sm text-primary/80">{u.username}</td>
                             <td className="py-4 px-4 text-center">
