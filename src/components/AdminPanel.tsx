@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, firebaseConfig } from '../lib/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { LogOut, UserPlus, Users, Loader2, X, Wallet, Bell, BellOff } from 'lucide-react';
+import { LogOut, UserPlus, Users, Loader2, X, Wallet, Bell, BellOff, Edit2, Lock, Unlock, Trash2 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 
 const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
@@ -20,6 +20,9 @@ export function AdminPanel() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editFullName, setEditFullName] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const MONTHS = [
     'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
@@ -153,8 +156,81 @@ export function AdminPanel() {
     }
   };
 
+  const handleToggleBlock = async (u: any) => {
+    if (confirm(`Rostdan ham foydalanuvchini ${u.isBlocked ? 'blokdan chiqarmoqchimisiz' : 'bloklamoqchimisiz'}?`)) {
+      try {
+        await updateDoc(doc(db, 'users', u.uid), { isBlocked: !u.isBlocked });
+        setUsers(users.map(user => user.uid === u.uid ? { ...user, isBlocked: !user.isBlocked } : user));
+      } catch (e) {
+        console.error(e);
+        alert("Xatolik yuz berdi");
+      }
+    }
+  };
+
+  const handleDeleteUser = async (u: any) => {
+    if (confirm(`Rostdan ham ${u.fullName} o'qituvchini o'chirmoqchimisiz?`)) {
+      try {
+        await deleteDoc(doc(db, 'users', u.uid));
+        setUsers(users.filter(user => user.uid !== u.uid));
+      } catch (e) {
+        console.error(e);
+        alert("Xatolik yuz berdi");
+      }
+    }
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !editFullName.trim()) return;
+    setSavingEdit(true);
+    try {
+      await updateDoc(doc(db, 'users', editingUser.uid), { fullName: editFullName.trim() });
+      setUsers(users.map(user => user.uid === editingUser.uid ? { ...user, fullName: editFullName.trim() } : user));
+      setEditingUser(null);
+    } catch (err) {
+      console.error(err);
+      alert("Xatolik yuz berdi");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const openEditModal = (u: any) => {
+    setEditingUser(u);
+    setEditFullName(u.fullName);
+  };
+
   return (
     <div className="min-h-screen gradient-bg p-4 sm:p-8 text-white relative">
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card w-full max-w-md p-6 rounded-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-primary" />
+                Tahrirlash
+              </h2>
+              <button 
+                onClick={() => setEditingUser(null)}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5 text-white/50" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <div>
+                <label className="block text-sm text-white/70 mb-1 ml-1">Ism va Familiya</label>
+                <input type="text" required value={editFullName} onChange={e => setEditFullName(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors" placeholder="Ali Valiyev" />
+              </div>
+              <button type="submit" disabled={savingEdit} className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2">
+                {savingEdit ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Saqlash'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass-card w-full max-w-md p-6 rounded-2xl">
@@ -311,11 +387,12 @@ export function AdminPanel() {
                         <th className="pb-3 px-4 font-medium">Username</th>
                         <th className="pb-3 px-4 font-medium text-center">To'lov holati</th>
                         <th className="pb-3 px-4 font-medium text-right">Yaratilgan sana</th>
+                        <th className="pb-3 px-4 font-medium text-right">Amallar</th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.length === 0 ? (
-                        <tr><td colSpan={5} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
+                        <tr><td colSpan={6} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
                       ) : (
                         users.map(u => (
                           <tr 
@@ -336,6 +413,31 @@ export function AdminPanel() {
                               )}
                             </td>
                             <td className="py-4 px-4 text-sm text-white/50 text-right">{new Date(u.createdAt).toLocaleDateString('uz-UZ')}</td>
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); openEditModal(u); }}
+                                  className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
+                                  title="Tahrirlash"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleToggleBlock(u); }}
+                                  className="p-1.5 bg-orange-500/10 hover:bg-orange-500/20 rounded-lg text-orange-400 hover:text-orange-300 transition-colors"
+                                  title={u.isBlocked ? "Blokdan chiqarish" : "Bloklash"}
+                                >
+                                  {u.isBlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                </button>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteUser(u); }}
+                                  className="p-1.5 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-300 transition-colors"
+                                  title="O'chirish"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))
                       )}
