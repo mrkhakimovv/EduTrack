@@ -223,6 +223,7 @@ export default function App() {
                   data={activeData} 
                   monthKey={monthKey} 
                   addPayment={addPayment} 
+                  onClose={() => setActiveTab('attendance')}
                 />
               )}
               {activeTab === 'debtors' && (

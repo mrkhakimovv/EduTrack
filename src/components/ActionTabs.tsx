@@ -45,7 +45,7 @@ export function ActionTabs({ activeTab, onTabChange, children }: ActionTabsProps
 
       <div className={cn(
         "flex-1 rounded-3xl overflow-hidden flex flex-col mb-8",
-        activeTab === 'attendance' ? "md:glass-card" : "glass-card"
+        (activeTab === 'attendance' || activeTab === 'payment') ? "md:glass-card" : "glass-card"
       )}>
         {children}
       </div>

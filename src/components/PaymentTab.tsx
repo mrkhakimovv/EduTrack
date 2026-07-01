@@ -1,15 +1,16 @@
 import { useState, useMemo, useEffect } from 'react';
 import { AppData, Student, getDebtAmount, PaymentRecord } from '../lib/store';
-import { Search, CheckCircle2 } from 'lucide-react';
+import { Search, CheckCircle2, Archive, ArrowLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface PaymentTabProps {
   data: AppData;
   monthKey: string;
   addPayment: (payment: Omit<PaymentRecord, "id" | "date">) => void;
+  onClose?: () => void;
 }
 
-export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
+export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabProps) {
   const [search, setSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   
@@ -58,7 +59,18 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6 relative h-full overflow-y-auto custom-scrollbar p-6">
+    <div className={cn(
+      "flex flex-col gap-6 relative h-full overflow-y-auto custom-scrollbar p-6",
+      "fixed inset-0 z-[60] bg-sys-base md:static md:z-auto md:bg-transparent"
+    )}>
+      {/* Mobile Header */}
+      <div className="flex md:hidden items-center gap-4 mb-2">
+        <button onClick={onClose} className="p-2 -ml-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors">
+          <ArrowLeft className="h-5 w-5 text-white/70" />
+        </button>
+        <h2 className="text-xl font-bold text-white">To'lov</h2>
+      </div>
+
       {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
@@ -73,36 +85,39 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
 
       {/* Payment Form (Active only when student selected) */}
       {selectedStudent && (
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 fade-in">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-lg text-white">
+        <div className={cn(
+          "bg-primary/5 border border-primary/20 rounded-xl p-5 fade-in",
+          "fixed inset-0 z-[100] h-[100dvh] bg-sys-base flex flex-col md:static md:h-auto md:z-auto md:bg-primary/5 md:block p-4 sm:p-5 pt-6"
+        )}>
+          <div className="flex items-center justify-between mb-6 md:mb-4">
+            <h3 className="font-semibold text-xl md:text-lg text-white">
               {selectedStudent.fullName} uchun to'lov
             </h3>
             <button 
               onClick={() => setSelectedStudent(null)}
-              className="text-sm text-white/50 hover:text-white"
+              className="text-sm text-white/50 hover:text-white px-3 py-1.5 bg-white/5 rounded-lg md:px-0 md:py-0 md:bg-transparent md:rounded-none"
             >
               Bekor qilish
             </button>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-            <div className="sm:col-span-5">
-              <label className="block text-xs text-white/50 mb-1 ml-1">Summa (so'm)</label>
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 md:gap-4 items-end flex-1 md:flex-none">
+            <div className="sm:col-span-5 flex flex-col gap-1">
+              <label className="block text-sm md:text-xs text-white/50 mb-1 ml-1">Summa (so'm)</label>
               <input
                 type="number"
                 value={amountInput}
                 onChange={e => setAmountInput(e.target.value)}
                 placeholder="0"
-                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary/50"
+                className="w-full bg-black/20 border border-white/10 rounded-xl md:rounded-lg px-4 py-3 md:px-3 md:py-2 text-white text-lg md:text-base focus:outline-none focus:border-primary/50"
               />
             </div>
             <div className="sm:col-span-5 flex justify-end">
-                <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 w-full h-[42px]">
+                <div className="flex bg-black/40 p-1.5 md:p-1 rounded-xl md:rounded-lg border border-white/5 w-full h-[52px] md:h-[42px]">
                   <button
                     onClick={() => setPaymentType(paymentType === "Naqd" ? "" : "Naqd")}
                     className={cn(
-                      "flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                      "flex-1 px-4 py-2 md:py-1.5 text-base md:text-sm font-medium rounded-lg md:rounded-md transition-all",
                       paymentType === "Naqd" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
                     )}
                   >
@@ -111,7 +126,7 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
                   <button
                     onClick={() => setPaymentType(paymentType === "Karta" ? "" : "Karta")}
                     className={cn(
-                      "flex-1 px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+                      "flex-1 px-4 py-2 md:py-1.5 text-base md:text-sm font-medium rounded-lg md:rounded-md transition-all",
                       paymentType === "Karta" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
                     )}
                   >
@@ -119,11 +134,11 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
                   </button>
                 </div>
             </div>
-            <div className="sm:col-span-2 flex items-end">
+            <div className="sm:col-span-2 flex items-end mt-auto md:mt-0 pt-4 md:pt-0">
               <button
                 onClick={handlePay}
                 disabled={!amountInput || parseInt(amountInput) <= 0}
-                className="w-full h-[42px] bg-primary text-white font-medium px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+                className="w-full h-[52px] md:h-[42px] text-lg md:text-base bg-primary text-white font-medium px-4 rounded-xl md:rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
               >
                 To'lash
               </button>
@@ -158,26 +173,28 @@ export function PaymentTab({ data, monthKey, addPayment }: PaymentTabProps) {
                 key={student.id}
                 onClick={() => setSelectedStudent(student)}
                 className={cn(
-                  "text-left p-4 rounded-xl border transition-all duration-200",
+                  "text-left p-4 rounded-xl border transition-all duration-200 flex items-center justify-between w-full",
                   isSelected 
                     ? "bg-primary/10 border-primary/30" 
                     : "bg-white/5 border-white/5 hover:bg-white/10",
                   debt > 0 && !isSelected && "debt-glow border-destructive/10 bg-destructive/5"
                 )}
               >
-                <div className="font-medium text-white/90 truncate mb-1">
-                  <span>{student.fullName}</span>
-                </div>
-                <div className="text-sm">
-                  {debt > 0 ? (
-                    <span className="text-destructive font-semibold">
-                      {new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz
-                    </span>
-                  ) : (
-                    <span className="text-accent flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> To'langan
-                    </span>
-                  )}
+                <div className="flex-1 min-w-0 pr-4">
+                  <div className="font-medium text-white/90 truncate mb-1">
+                    <span>{student.fullName}</span>
+                  </div>
+                  <div className="text-sm">
+                    {debt > 0 ? (
+                      <span className="text-destructive font-semibold">
+                        {new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz
+                      </span>
+                    ) : (
+                      <span className="text-accent flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> To'langan
+                      </span>
+                    )}
+                  </div>
                 </div>
               </button>
             );
