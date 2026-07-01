@@ -63,7 +63,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
 
   if (!selectedGroupId) {
     return (
-      <div className="flex flex-col gap-4 h-full p-6 overflow-y-auto custom-scrollbar">
+      <div className="flex flex-col gap-4 h-full p-6 overflow-y-auto custom-scrollbar glass-card md:bg-transparent md:border-none md:backdrop-filter-none rounded-3xl">
         <h2 className="text-xl font-bold text-white/90 mb-2">Guruhni tanlang</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-none">
           {activeGroups.map(g => {
@@ -106,8 +106,11 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
   const attendancePercent = totalCells === 0 ? 0 : Math.round((totalPresent / totalCells) * 100);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 shrink-0">
+    <div className={cn(
+      "flex flex-col h-full",
+      selectedGroupId ? "fixed inset-0 z-[100] h-[100dvh] bg-sys-base md:static md:h-full md:z-auto md:bg-transparent" : ""
+    )}>
+      <div className="p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 shrink-0 pt-6 md:pt-6">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setSelectedGroupId("")} 
