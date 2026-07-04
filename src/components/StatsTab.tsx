@@ -56,7 +56,7 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
   };
 
   return (
-    <div className="flex flex-col gap-8 p-6 h-full overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col gap-8 h-full overflow-y-auto custom-scrollbar p-6">
       {/* 5 Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 shrink-0">
         <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex flex-col justify-center">

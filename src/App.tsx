@@ -168,7 +168,7 @@ export default function App() {
   };
 
   return (
-    <div className="gradient-bg min-h-[100dvh] flex flex-col md:h-screen md:overflow-hidden">
+    <div className="gradient-bg min-h-screen flex flex-col h-screen overflow-hidden">
       <Header 
         onCreateGroup={openCreateGroup}
         onAddStudent={openCreateStudent}
@@ -176,7 +176,7 @@ export default function App() {
         onShowAllGroups={() => setShowAllGroups(true)}
       />
 
-      <main className="flex-1 p-4 sm:p-6 flex flex-col gap-6 md:overflow-hidden max-w-[1400px] w-full mx-auto">
+      <main className="flex-1 p-4 sm:p-6 flex flex-col gap-6 overflow-hidden max-w-[1400px] w-full mx-auto">
         {appUser && appUser.role !== 'admin' && !appUser.isUnlimited && !appUser.appPayments?.[`${new Date().getFullYear()}-${new Date().getMonth()}`] && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 w-full shrink-0 shadow-lg shadow-black/10">
             <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -206,7 +206,7 @@ export default function App() {
             />
           </div>
 
-          <div className="flex-1 flex flex-col md:overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <ActionTabs activeTab={activeTab} onTabChange={setActiveTab}>
               {activeTab === 'attendance' && (
                 <AttendanceTab 

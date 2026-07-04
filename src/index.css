@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+@utility glass-card { background: var(--theme-glass-bg); border: 1px solid var(--theme-glass-border); backdrop-filter: blur(10px); }
+
 
 :root {
   --theme-white: #ffffff;
@@ -67,11 +69,6 @@
 @layer components {
   .gradient-bg {
     background: linear-gradient(135deg, var(--theme-bg-start) 0%, var(--theme-bg-mid) 50%, var(--theme-bg-end) 100%);
-  }
-  .glass-card {
-    background: var(--theme-glass-bg);
-    border: 1px solid var(--theme-glass-border);
-    backdrop-filter: blur(10px);
   }
   .glass-modal {
     background: var(--theme-modal-bg);

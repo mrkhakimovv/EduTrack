@@ -72,7 +72,8 @@ service cloud.firestore {
     }
 
     match /attendance/{attendanceId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidAttendance(incoming());
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == request.auth.uid && isValidAttendance(incoming());
     }

@@ -65,7 +65,7 @@ export function DebtorsTab({ data, monthKey, addPayment }: DebtorsTabProps) {
   const overallTotalDebt = debtors.reduce((sum, d) => sum + d.currentDebt, 0);
 
   return (
-    <div className="flex flex-col gap-6 p-6 h-full overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar p-6">
       <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-center justify-between shrink-0">
         <span className="text-destructive font-medium">
           Jami {debtors.length} ta qarzdor
