@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 interface GroupModalProps {
   initialData?: Group | null;
   onClose: () => void;
-  onSave: (group: Omit<Group, "id" | "createdAt">) => void;
+  onSave: (group: Omit<Group, "id">) => void;
 }
 
 export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
@@ -14,6 +14,7 @@ export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
   const [time, setTime] = useState("");
   const [days, setDays] = useState<number[]>([]);
   const [monthlyPayment, setMonthlyPayment] = useState("");
+  const [createdAt, setCreatedAt] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     if (initialData) {
@@ -21,6 +22,9 @@ export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
       setTime(initialData.time);
       setDays(initialData.days);
       setMonthlyPayment(initialData.monthlyPayment?.toString() || "");
+      if (initialData.createdAt) {
+        setCreatedAt(initialData.createdAt.split('T')[0]);
+      }
     }
   }, [initialData]);
 
@@ -30,11 +34,22 @@ export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
 
   const handleSave = () => {
     if (!name.trim()) return;
+    
+    // Convert YYYY-MM-DD back to an ISO string or just store it.
+    // Assuming createdAt in store can be a simple date string, but for consistency we can append the time.
+    let createdIso = createdAt;
+    if (createdAt.length === 10) {
+      // It's just a date, append current time to make it valid ISO if needed, or keep it.
+      // But standard createdAt is ISO string. 
+      createdIso = new Date(createdAt + 'T12:00:00Z').toISOString();
+    }
+    
     onSave({ 
       name: name.trim(), 
       time, 
       days,
-      monthlyPayment: monthlyPayment ? parseInt(monthlyPayment.replace(/\D/g, ''), 10) : undefined 
+      monthlyPayment: monthlyPayment ? parseInt(monthlyPayment.replace(/\D/g, ''), 10) : undefined,
+      createdAt: createdIso
     });
   };
 
@@ -81,6 +96,16 @@ export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
               type="time"
               value={time}
               onChange={e => setTime(e.target.value)}
+              className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/50 [color-scheme:dark]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/70 mb-1 ml-1">Guruh ochilgan sana (Yaratilish sanasi)</label>
+            <input
+              type="date"
+              value={createdAt}
+              onChange={e => setCreatedAt(e.target.value)}
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/50 [color-scheme:dark]"
             />
           </div>

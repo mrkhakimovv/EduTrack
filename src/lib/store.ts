@@ -81,15 +81,37 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
-export function getLessonDates(days: number[], year: number, month: number): string[] {
+export function getLessonDates(group: Group, year: number, month: number): string[] {
   const dates: string[] = [];
   const date = new Date(year, month, 1);
+  
   while (date.getMonth() === month) {
-    if (days.includes(date.getDay())) {
-      const dd = String(date.getDate()).padStart(2, '0');
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const yyyy = date.getFullYear();
-      dates.push(`${yyyy}-${mm}-${dd}`);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const dateTs = new Date(`${dateStr}T23:59:59`).getTime();
+    const groupCreatedTs = new Date(group.createdAt).getTime();
+    
+    // Treat the start date as midnight of that day, so we compare dates easily
+    const createdDateOnlyTs = new Date(`${group.createdAt.split('T')[0]}T00:00:00`).getTime();
+    const currentIterTs = new Date(`${dateStr}T00:00:00`).getTime();
+
+    if (currentIterTs >= createdDateOnlyTs) {
+      let daysForDate = group.days;
+      if (group.history && group.history.length > 0) {
+        for (let i = 0; i < group.history.length; i++) {
+          const h = group.history[i];
+          if (new Date(h.updatedAt).getTime() > dateTs) {
+            daysForDate = h.days;
+            break;
+          }
+        }
+      }
+      
+      if (daysForDate.includes(date.getDay())) {
+        dates.push(dateStr);
+      }
     }
     date.setDate(date.getDate() + 1);
   }

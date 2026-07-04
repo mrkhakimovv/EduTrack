@@ -19,7 +19,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
   
   const lessonDates = useMemo(() => {
     if (!group) return [];
-    return getLessonDates(group.days, year, month);
+    return getLessonDates(group, year, month);
   }, [group, year, month]);
 
   const studentsInGroup = useMemo(() => {

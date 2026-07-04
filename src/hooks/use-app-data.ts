@@ -68,16 +68,17 @@ export function useAppData() {
     };
   }, []);
 
-  const addGroup = useCallback(async (group: Omit<Group, "id" | "createdAt">) => {
+  const addGroup = useCallback(async (group: Omit<Group, "id">) => {
     if (!auth.currentUser) return;
     const newId = generateId();
     const docRef = doc(db, 'groups', newId);
     try {
-      await setDoc(docRef, { ...group, userId: auth.currentUser.uid, createdAt: new Date().toISOString() });
+      const createdAt = group.createdAt || new Date().toISOString();
+      await setDoc(docRef, { ...group, userId: auth.currentUser.uid, createdAt });
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `groups/${newId}`); }
   }, []);
 
-  const updateGroup = useCallback(async (id: string, updates: Partial<Omit<Group, "id" | "createdAt">>) => {
+  const updateGroup = useCallback(async (id: string, updates: Partial<Omit<Group, "id">>) => {
     if (!data || !auth.currentUser) return;
     const g = data.groups.find(x => x.id === id);
     if (!g) return;
