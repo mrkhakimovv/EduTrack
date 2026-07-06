@@ -80,15 +80,15 @@ export function DebtorsTab({ data, monthKey, addPayment }: DebtorsTabProps) {
           <div key={student.id} className="bg-white/5 border border-white/5 border-l-destructive/50 border-l-4 rounded-xl p-4 transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               
-              <div className="flex flex-col gap-1">
-                <div className="debt-glow">
-                  <span className="font-semibold text-white/90 text-lg">{student.fullName}</span>
+              <div className="flex items-center gap-4">
+                <div className="bg-destructive/20 text-destructive px-3 py-2 rounded-lg font-bold text-lg shrink-0">
+                  {new Intl.NumberFormat("uz-UZ").format(currentDebt)}
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className="px-2 py-0.5 rounded-md bg-destructive/20 text-destructive text-xs font-semibold">
-                    Shu oygi qarz: {new Intl.NumberFormat("uz-UZ").format(currentDebt)} so'm
-                  </span>
+                <div className="flex flex-col gap-1">
+                  <div className="debt-glow">
+                    <span className="font-semibold text-white/90 text-lg">{student.fullName}</span>
+                  </div>
                 </div>
               </div>
 

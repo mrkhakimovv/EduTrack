@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AppData, PaymentRecord, formatSum, isStudentDebtor, formatDateTime } from '../lib/store';
+import { AppData, PaymentRecord, formatSum, isStudentDebtor, formatDateTime, formatMonthKey } from '../lib/store';
 import { Pencil, Trash2, Check, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -16,16 +16,22 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
   const [editAmount, setEditAmount] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const monthPayments = useMemo(() => {
+  const statsPayments = useMemo(() => {
     return data.payments
       .filter(p => p.month === monthKey)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [data.payments, monthKey]);
+
+  const historyPayments = useMemo(() => {
+    return data.payments
+      .filter(p => p.month === monthKey || p.date.startsWith(monthKey))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [data.payments, monthKey]);
 
   const stats = useMemo(() => {
     const activeStudents = data.students.filter(s => !s.deletedAt && !s.archived);
     const totalStudents = activeStudents.length;
-    const paidStudentIds = new Set(monthPayments.map(p => p.studentId));
+    const paidStudentIds = new Set(statsPayments.map(p => p.studentId));
     let debtorsCount = 0;
     
     activeStudents.forEach(s => {
@@ -34,7 +40,7 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
       }
     });
 
-    const totalCollected = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalCollected = statsPayments.reduce((sum, p) => sum + p.amount, 0);
 
     return {
       totalStudents,
@@ -42,7 +48,7 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
       debtorsCount,
       totalCollected
     };
-  }, [data.students, monthPayments, monthKey, data.payments]);
+  }, [data.students, statsPayments, monthKey, data.payments]);
 
   const handleEditSave = (p: PaymentRecord) => {
     const amt = parseInt(editAmount, 10);
@@ -89,16 +95,16 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
           To'lovlar tarixi
         </h3>
         <p className="text-sm text-white/50 mb-4">
-          Shu oyda {monthPayments.length} ta to'lov amalga oshirilgan
+          Shu oyda {historyPayments.length} ta to'lov amalga oshirilgan
         </p>
 
-        {monthPayments.length === 0 ? (
+        {historyPayments.length === 0 ? (
           <div className="bg-white/5 rounded-xl border border-white/5 p-8 text-center text-white/40">
             Hali to'lovlar mavjud emas
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {monthPayments.map(p => {
+            {historyPayments.map(p => {
               const student = data.students.find(s => s.id === p.studentId);
               const name = student ? student.fullName : "O'chirib yuborilgan o'quvchi";
               const isEditing = editingId === p.id;
@@ -163,9 +169,16 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
                         </div>
                       </div>
                     ) : (
-                      <span className="font-bold text-accent">
-                        {formatSum(p.amount)}
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span className="font-bold text-accent">
+                          {formatSum(p.amount)}
+                        </span>
+                        {p.month !== monthKey && (
+                          <span className="text-[10px] text-white/50 mt-0.5">
+                            {formatMonthKey(p.month)} uchun
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     {!isEditing && !isDeleting && (
