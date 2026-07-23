@@ -216,6 +216,7 @@ export default function App() {
                   month={selectedMonth}
                   setAttendance={setAttendance} 
                   toggleArchiveStudent={toggleArchiveStudent}
+                  updateStudent={updateStudent}
                 />
               )}
               {activeTab === 'payment' && (

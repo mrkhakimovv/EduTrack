@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT } from '../lib/store';
+import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive } from 'lucide-react';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, ArrowRightLeft } from 'lucide-react';
+import { MoveStudentGroupModal } from './MoveStudentGroupModal';
 
 interface AttendanceTabProps {
   data: AppData;
@@ -10,10 +11,12 @@ interface AttendanceTabProps {
   month: number; // 0-11
   setAttendance: (groupId: string, monthKey: string, studentId: string, date: string, status: "present" | "absent" | undefined) => void;
   toggleArchiveStudent: (id: string) => void;
+  updateStudent: (id: string, updates: any) => void;
 }
 
-export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent }: AttendanceTabProps) {
+export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent, updateStudent }: AttendanceTabProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [movingStudent, setMovingStudent] = useState<Student | null>(null);
 
   const group = data.groups.find(g => g.id === selectedGroupId);
   
@@ -186,13 +189,22 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => toggleArchiveStudent(student.id)}
-                        className="ml-2 w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
-                        title="Arxivlash"
-                      >
-                        <Archive className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1 ml-2">
+                        <button
+                          onClick={() => setMovingStudent(student)}
+                          className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
+                          title="Guruhini o'zgartirish"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => toggleArchiveStudent(student.id)}
+                          className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
+                          title="Arxivlash"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                     {lessonDates.map(date => {
                       const checkDate = new Date(date).getTime();
@@ -246,6 +258,18 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
             </tbody>
           </table>
         </div>
+      )}
+
+      {movingStudent && (
+        <MoveStudentGroupModal
+          student={movingStudent}
+          groups={data.groups}
+          onClose={() => setMovingStudent(null)}
+          onSave={(newGroupIds) => {
+            updateStudent(movingStudent.id, { groupIds: newGroupIds });
+            setMovingStudent(null);
+          }}
+        />
       )}
     </div>
   );
