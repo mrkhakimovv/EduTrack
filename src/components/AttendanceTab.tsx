@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, ArrowRightLeft } from 'lucide-react';
-import { MoveStudentGroupModal } from './MoveStudentGroupModal';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive } from 'lucide-react';
+
 
 interface AttendanceTabProps {
   data: AppData;
@@ -16,7 +16,7 @@ interface AttendanceTabProps {
 
 export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent, updateStudent }: AttendanceTabProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
-  const [movingStudent, setMovingStudent] = useState<Student | null>(null);
+
 
   const group = data.groups.find(g => g.id === selectedGroupId);
   
@@ -191,13 +191,6 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                       </div>
                       <div className="flex items-center gap-1 ml-2">
                         <button
-                          onClick={() => setMovingStudent(student)}
-                          className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
-                          title="Guruhini o'zgartirish"
-                        >
-                          <ArrowRightLeft className="h-4 w-4" />
-                        </button>
-                        <button
                           onClick={() => toggleArchiveStudent(student.id)}
                           className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
                           title="Arxivlash"
@@ -260,17 +253,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
         </div>
       )}
 
-      {movingStudent && (
-        <MoveStudentGroupModal
-          student={movingStudent}
-          groups={data.groups}
-          onClose={() => setMovingStudent(null)}
-          onSave={(newGroupIds) => {
-            updateStudent(movingStudent.id, { groupIds: newGroupIds });
-            setMovingStudent(null);
-          }}
-        />
-      )}
+
     </div>
   );
 }
