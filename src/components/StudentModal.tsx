@@ -27,7 +27,7 @@ export function StudentModal({ initialData, groups, onClose, onSave }: StudentMo
       setParentPhone(initialData.parentPhone);
       setSchool(initialData.school);
       setGrade(initialData.grade);
-      setGroupIds(initialData.groupIds);
+      setGroupIds(initialData.groupIds || []);
       setJoinDate(initialData.joinDate);
       
       if (initialData.groupPricing) {
@@ -44,9 +44,9 @@ export function StudentModal({ initialData, groups, onClose, onSave }: StudentMo
         const pricing: Record<string, { monthly: string, firstMonth: string }> = {};
         // If they have only 1 group, give it all to that group.
         // If more, just distribute it evenly or give the global to every group as a fallback (they can edit it).
-        const monthlyPerGroup = Math.round(initialData.monthlyPayment / Math.max(1, initialData.groupIds.length));
-        const firstMonthPerGroup = Math.round(initialData.firstMonthPayment / Math.max(1, initialData.groupIds.length));
-        initialData.groupIds.forEach(gid => {
+        const monthlyPerGroup = Math.round(initialData.monthlyPayment / Math.max(1, (initialData.groupIds || []).length));
+        const firstMonthPerGroup = Math.round(initialData.firstMonthPayment / Math.max(1, (initialData.groupIds || []).length));
+        (initialData.groupIds || []).forEach(gid => {
           pricing[gid] = {
             monthly: monthlyPerGroup.toString(),
             firstMonth: firstMonthPerGroup.toString()

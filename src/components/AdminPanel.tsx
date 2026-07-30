@@ -385,6 +385,7 @@ export function AdminPanel() {
                         <th className="pb-3 px-4 font-medium">ID</th>
                         <th className="pb-3 px-4 font-medium">Ism Familiya</th>
                         <th className="pb-3 px-4 font-medium">Username</th>
+                        <th className="pb-3 px-4 font-medium">Parol</th>
                         <th className="pb-3 px-4 font-medium text-center">To'lov holati</th>
                         <th className="pb-3 px-4 font-medium text-right">Yaratilgan sana</th>
                         <th className="pb-3 px-4 font-medium text-right">Amallar</th>
@@ -392,7 +393,7 @@ export function AdminPanel() {
                     </thead>
                     <tbody>
                       {users.length === 0 ? (
-                        <tr><td colSpan={6} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
+                        <tr><td colSpan={7} className="py-8 text-center text-white/40">Hali foydalanuvchilar yo'q</td></tr>
                       ) : (
                         users.map(u => (
                           <tr 
@@ -403,6 +404,7 @@ export function AdminPanel() {
                             <td className="py-4 px-4 font-mono font-bold text-primary/90">{u.teacherId || '-'}</td>
                             <td className="py-4 px-4 font-medium group-hover:text-primary transition-colors">{u.fullName}</td>
                             <td className="py-4 px-4 font-mono text-sm text-primary/80">{u.username}</td>
+                            <td className="py-4 px-4 font-mono text-sm text-primary/60">{u.plainPassword || '***'}</td>
                             <td className="py-4 px-4 text-center">
                               {u.isUnlimited ? (
                                 <span className="inline-flex px-2 py-1 rounded-md bg-green-500/10 text-green-400 text-xs font-medium">Cheksiz</span>

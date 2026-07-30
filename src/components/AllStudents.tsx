@@ -171,7 +171,7 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-3 border-t border-white/10">
-                  {student.groupIds.map(gid => {
+                  {(student.groupIds || []).map(gid => {
                     const g = data.groups.find(x => x.id === gid);
                     return g ? (
                       <span key={gid} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded border border-primary/20">
@@ -179,7 +179,7 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
                       </span>
                     ) : null;
                   })}
-                  {student.groupIds.length === 0 && (
+                  {(!student.groupIds || student.groupIds.length === 0) && (
                     <span className="text-xs text-white/30 italic">Guruhsiz</span>
                   )}
                 </div>

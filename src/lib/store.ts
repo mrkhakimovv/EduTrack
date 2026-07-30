@@ -129,7 +129,7 @@ export function getExpectedPayment(student: Student, monthKey: string): number {
   // Use per-group pricing if available
   if (student.groupPricing && Object.keys(student.groupPricing).length > 0) {
     let total = 0;
-    for (const groupId of student.groupIds) {
+    for (const groupId of (student.groupIds || [])) {
       const pricing = student.groupPricing[groupId];
       if (pricing) {
         if (monthKey === joinMonthKey) {

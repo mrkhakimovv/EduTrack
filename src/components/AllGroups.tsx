@@ -42,7 +42,7 @@ export function AllGroups({
       return null;
     }
 
-    const groupStudents = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds.includes(group.id));
+    const groupStudents = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds?.includes(group.id));
 
     return (
       <div className="fixed inset-0 z-[60] bg-sys-base/95 backdrop-blur-md overflow-y-auto w-full h-full">
@@ -178,7 +178,7 @@ export function AllGroups({
             </div>
           ) : (
             filteredGroups.map(group => {
-              const studentsCount = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds.includes(group.id)).length;
+              const studentsCount = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds?.includes(group.id)).length;
               
               return (
                 <div 

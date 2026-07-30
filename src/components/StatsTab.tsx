@@ -24,7 +24,7 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
 
   const historyPayments = useMemo(() => {
     return data.payments
-      .filter(p => p.month === monthKey || p.date.startsWith(monthKey))
+      .filter(p => p.month === monthKey || p.date?.startsWith(monthKey))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [data.payments, monthKey]);
 
@@ -117,7 +117,7 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
                     <div className="flex flex-col gap-1 mt-1.5 text-xs text-white/40">
                       <div className="flex items-center gap-2">
                         <span className={cn(p.editDates?.length ? "line-through opacity-50" : "")}>
-                          {formatDateTime(p.date)}
+                          {p.date ? formatDateTime(p.date) : ""}
                         </span>
                         {p.note && (
                           <>

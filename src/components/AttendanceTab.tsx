@@ -29,7 +29,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
     return data.students.filter(s => {
       if (s.deletedAt) return false;
       if (s.archived) return false;
-      if (s.groupIds.includes(selectedGroupId)) return true;
+      if (s.groupIds?.includes(selectedGroupId)) return true;
       if (s.history && s.history.length > 0) {
         const parts = monthKey.split('-');
         if (parts.length === 2) {
@@ -41,7 +41,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
             const time = new Date(h.updatedAt).getTime();
             return time >= monthStartDateTs && time <= monthEndDateTs;
           });
-          if (historyInMonth.some(h => h.groupIds.includes(selectedGroupId))) return true;
+          if (historyInMonth.some(h => h.groupIds?.includes(selectedGroupId))) return true;
         }
       }
       return false;
@@ -70,7 +70,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
         <h2 className="text-xl font-bold text-white/90 mb-2">Guruhni tanlang</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-none">
           {activeGroups.map(g => {
-            const studentsCount = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds.includes(g.id)).length;
+            const studentsCount = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds?.includes(g.id)).length;
             const daysStr = g.days.map(d => DAY_NAMES_SHORT[d]).join('-');
             return (
               <button
@@ -220,12 +220,12 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                         const editsAfterDate = student.history.filter(h => new Date(h.updatedAt).getTime() > endOfDayTs);
                         editsAfterDate.sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
                         if (editsAfterDate.length > 0) {
-                          isActive = editsAfterDate[0].groupIds.includes(selectedGroupId);
+                          isActive = editsAfterDate[0].groupIds?.includes(selectedGroupId);
                         } else {
-                          isActive = student.groupIds.includes(selectedGroupId);
+                          isActive = student.groupIds?.includes(selectedGroupId);
                         }
                       } else if (isActive && (!student.history || student.history.length === 0)) {
-                        isActive = student.groupIds.includes(selectedGroupId);
+                        isActive = student.groupIds?.includes(selectedGroupId);
                       }
 
                       const status = attendanceRecord[student.id]?.[date];
