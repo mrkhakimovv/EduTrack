@@ -176,6 +176,103 @@ export function isStudentDebtor(student: Student, monthKey: string, payments: Pa
   return getDebtAmount(student, monthKey, payments) > 0;
 }
 
+export interface GroupFinancialStats {
+  groupId: string;
+  totalStudents: number;
+  expectedAmount: number;
+  collectedAmount: number;
+  remainingAmount: number;
+  paidPercentage: number;
+  debtorCount: number;
+}
+
+export function getGroupFinancialStats(
+  group: Group,
+  students: Student[],
+  payments: PaymentRecord[],
+  monthKey: string
+): GroupFinancialStats {
+  const groupStudents = students.filter(s => {
+    if (s.deletedAt || s.archived) return false;
+    if (s.groupIds?.includes(group.id)) return true;
+    if (s.history && s.history.length > 0) {
+      const parts = monthKey.split('-');
+      if (parts.length === 2) {
+        const mYear = parseInt(parts[0], 10);
+        const mMonthIndex = parseInt(parts[1], 10) - 1;
+        const monthStartDateTs = new Date(mYear, mMonthIndex, 1).getTime();
+        const monthEndDateTs = new Date(mYear, mMonthIndex + 1, 0, 23, 59, 59, 999).getTime();
+        const historyInMonth = s.history.filter(h => {
+          const time = new Date(h.updatedAt).getTime();
+          return time >= monthStartDateTs && time <= monthEndDateTs;
+        });
+        if (historyInMonth.some(h => h.groupIds?.includes(group.id))) return true;
+      }
+    }
+    return false;
+  });
+
+  let totalExpected = 0;
+  let totalCollected = 0;
+  let totalRemaining = 0;
+  let debtorCount = 0;
+
+  groupStudents.forEach(student => {
+    const joinDate = new Date(student.joinDate);
+    const joinMonthKey = `${joinDate.getFullYear()}-${String(joinDate.getMonth() + 1).padStart(2, '0')}`;
+    
+    // If student joined after this monthKey, expected is 0
+    if (monthKey < joinMonthKey) return;
+
+    let studentExpectedForGroup = 0;
+    if (student.groupPricing && student.groupPricing[group.id]) {
+      const p = student.groupPricing[group.id];
+      studentExpectedForGroup = monthKey === joinMonthKey ? p.firstMonth : p.monthly;
+    } else {
+      const numGroups = Math.max(1, (student.groupIds || []).length);
+      const studentTotalExpected = monthKey === joinMonthKey ? student.firstMonthPayment : student.monthlyPayment;
+      studentExpectedForGroup = Math.round(studentTotalExpected / numGroups);
+    }
+
+    const studentTotalExpected = getExpectedPayment(student, monthKey);
+    const studentTotalPaid = payments
+      .filter(p => p.studentId === student.id && p.month === monthKey)
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    let studentPaidForGroup = 0;
+    if (studentTotalExpected > 0) {
+      const ratio = studentExpectedForGroup / studentTotalExpected;
+      studentPaidForGroup = Math.min(studentExpectedForGroup, Math.round(studentTotalPaid * ratio));
+      if (studentTotalPaid > studentTotalExpected) {
+        studentPaidForGroup = Math.round(studentTotalPaid * ratio);
+      }
+    } else if (studentExpectedForGroup > 0) {
+      studentPaidForGroup = Math.min(studentExpectedForGroup, studentTotalPaid);
+    }
+
+    const studentRemainingForGroup = Math.max(0, studentExpectedForGroup - studentPaidForGroup);
+
+    totalExpected += studentExpectedForGroup;
+    totalCollected += studentPaidForGroup;
+    totalRemaining += studentRemainingForGroup;
+    if (studentRemainingForGroup > 0) {
+      debtorCount++;
+    }
+  });
+
+  const paidPercentage = totalExpected > 0 ? Math.min(100, Math.round((totalCollected / totalExpected) * 100)) : 0;
+
+  return {
+    groupId: group.id,
+    totalStudents: groupStudents.length,
+    expectedAmount: totalExpected,
+    collectedAmount: totalCollected,
+    remainingAmount: totalRemaining,
+    paidPercentage,
+    debtorCount
+  };
+}
+
 export function formatSum(amount: number): string {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " so'm";
 }

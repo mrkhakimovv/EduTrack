@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student } from '../lib/store';
+import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student, getGroupFinancialStats, formatSum } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive } from 'lucide-react';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle } from 'lucide-react';
 
 
 interface AttendanceTabProps {
@@ -60,33 +60,146 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
 
   const activeGroups = data.groups.filter(g => !g.deletedAt && !g.archived);
 
+  // Group stats calculation for all active groups
+  const groupsStatsMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getGroupFinancialStats>>();
+    activeGroups.forEach(g => {
+      map.set(g.id, getGroupFinancialStats(g, data.students, data.payments, monthKey));
+    });
+    return map;
+  }, [activeGroups, data.students, data.payments, monthKey]);
+
+  const totalGroupsCollected = useMemo(() => {
+    let sum = 0;
+    groupsStatsMap.forEach(stat => {
+      sum += stat.collectedAmount;
+    });
+    return sum;
+  }, [groupsStatsMap]);
+
+  const totalGroupsRemaining = useMemo(() => {
+    let sum = 0;
+    groupsStatsMap.forEach(stat => {
+      sum += stat.remainingAmount;
+    });
+    return sum;
+  }, [groupsStatsMap]);
+
+  const selectedGroupStats = useMemo(() => {
+    if (!group) return null;
+    return groupsStatsMap.get(group.id) || getGroupFinancialStats(group, data.students, data.payments, monthKey);
+  }, [group, groupsStatsMap, data.students, data.payments, monthKey]);
+
   if (activeGroups.length === 0) {
     return <div className="text-center text-white/50 py-8">Hali guruhlar yo'q</div>;
   }
 
   if (!selectedGroupId) {
     return (
-      <div className="flex flex-col gap-4 h-full p-6 overflow-y-auto custom-scrollbar glass-card md:bg-transparent md:border-none md:backdrop-filter-none rounded-3xl">
-        <h2 className="text-xl font-bold text-white/90 mb-2">Guruhni tanlang</h2>
+      <div className="flex flex-col gap-5 h-full p-4 sm:p-6 overflow-y-auto custom-scrollbar glass-card md:bg-transparent md:border-none md:backdrop-filter-none rounded-3xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-white/90">Guruhni tanlang</h2>
+            <p className="text-xs text-white/50 mt-0.5">Davomat va to'lovlar statistikasini ko'rish uchun guruh ustiga bosing</p>
+          </div>
+          
+          <div className="flex items-center gap-2 sm:gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs">
+            <div>
+              <span className="text-white/40 block text-[10px]">Jami yig'ilgan:</span>
+              <span className="font-bold text-emerald-400">{formatSum(totalGroupsCollected)}</span>
+            </div>
+            <div className="w-px h-6 bg-white/10" />
+            <div>
+              <span className="text-white/40 block text-[10px]">Jami qolgan:</span>
+              <span className={cn("font-bold", totalGroupsRemaining > 0 ? "text-rose-400" : "text-white/70")}>
+                {formatSum(totalGroupsRemaining)}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-none">
           {activeGroups.map(g => {
-            const studentsCount = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds?.includes(g.id)).length;
+            const gStats = groupsStatsMap.get(g.id) || getGroupFinancialStats(g, data.students, data.payments, monthKey);
             const daysStr = g.days.map(d => DAY_NAMES_SHORT[d]).join('-');
+
             return (
               <button
                 key={g.id}
                 onClick={() => setSelectedGroupId(g.id)}
-                className="glass-card hover:bg-white/5 border border-white/5 rounded-2xl p-5 text-left transition-colors flex items-center justify-between group"
+                className="glass-card hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-2xl p-4 sm:p-5 text-left transition-all flex flex-col justify-between group shadow-lg shadow-black/10 gap-3"
               >
-                <div>
-                  <h3 className="text-lg font-bold text-white/90">{g.name}</h3>
-                  <p className="text-sm text-white/50 mt-1">{daysStr} • {g.time || 'Vaqtsiz'} • {studentsCount} ta o'quvchi</p>
+                <div className="flex items-start justify-between gap-3 w-full">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors">{g.name}</h3>
+                      {g.time && (
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-white/10 text-white/80 font-medium">
+                          {g.time}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-white/50 mt-1">
+                      {daysStr} • {gStats.totalStudents} ta o'quvchi
+                    </p>
+                  </div>
+                  <div className="h-9 w-9 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-primary/20 group-hover:text-primary text-white/60 transition-colors shrink-0">
+                    <ChevronRight className="h-5 w-5" />
+                  </div>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-500/20 group-hover:text-blue-400 transition-colors">
-                  <ChevronRight className="h-5 w-5" />
+
+                {/* Group Collected and Remaining Statistics */}
+                <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-2 w-full">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5 flex flex-col">
+                    <span className="text-[11px] text-emerald-400/80 font-medium">Yig'ilgan summa</span>
+                    <span className="text-sm sm:text-base font-bold text-emerald-400 mt-0.5">
+                      {formatSum(gStats.collectedAmount)}
+                    </span>
+                  </div>
+                  <div className={cn(
+                    "rounded-xl p-2.5 flex flex-col border",
+                    gStats.remainingAmount > 0 
+                      ? "bg-rose-500/10 border-rose-500/20" 
+                      : "bg-white/5 border-white/10"
+                  )}>
+                    <span className={cn(
+                      "text-[11px] font-medium",
+                      gStats.remainingAmount > 0 ? "text-rose-400/80" : "text-white/40"
+                    )}>
+                      Qolgan summa
+                    </span>
+                    <span className={cn(
+                      "text-sm sm:text-base font-bold mt-0.5",
+                      gStats.remainingAmount > 0 ? "text-rose-400" : "text-white/70"
+                    )}>
+                      {formatSum(gStats.remainingAmount)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mini progress bar */}
+                <div className="w-full">
+                  <div className="flex justify-between items-center text-[10px] text-white/40 mb-1">
+                    <span>Yig'ish darajasi</span>
+                    <span className={cn(
+                      "font-semibold",
+                      gStats.paidPercentage === 100 ? "text-emerald-400" : "text-white/70"
+                    )}>
+                      {gStats.paidPercentage}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-300",
+                        gStats.paidPercentage === 100 ? "bg-emerald-400" : "bg-primary"
+                      )}
+                      style={{ width: `${gStats.paidPercentage}%` }}
+                    />
+                  </div>
                 </div>
               </button>
-            )
+            );
           })}
         </div>
       </div>
@@ -131,12 +244,40 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
           </div>
         </div>
 
-        <div className="flex gap-8">
-          <div className="text-center">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+          {selectedGroupStats && (
+            <>
+              <div className="text-left sm:text-center">
+                <div className="text-emerald-400 font-bold text-base sm:text-lg">
+                  {formatSum(selectedGroupStats.collectedAmount)}
+                </div>
+                <div className="text-[10px] text-emerald-400/80 uppercase font-medium tracking-wider">
+                  Yig'ilgan
+                </div>
+              </div>
+
+              <div className="text-left sm:text-center">
+                <div className={cn(
+                  "font-bold text-base sm:text-lg",
+                  selectedGroupStats.remainingAmount > 0 ? "text-rose-400" : "text-white/60"
+                )}>
+                  {formatSum(selectedGroupStats.remainingAmount)}
+                </div>
+                <div className={cn(
+                  "text-[10px] uppercase font-medium tracking-wider",
+                  selectedGroupStats.remainingAmount > 0 ? "text-rose-400/80" : "text-white/40"
+                )}>
+                  Qolgan
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="text-center pl-2 border-l border-white/10 hidden sm:block">
             <div className="text-[#10b981] font-bold text-lg">{attendancePercent}%</div>
             <div className="text-[10px] text-white/40 uppercase font-medium mt-0.5 tracking-wider">Davomat</div>
           </div>
-          <div className="text-center">
+          <div className="text-center hidden sm:block">
             <div className="text-[#ef4444] font-bold text-lg">
               {studentsInGroup.filter(s => getDebtAmount(s, monthKey, data.payments) > 0).length}
             </div>

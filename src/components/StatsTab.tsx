@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AppData, PaymentRecord, formatSum, isStudentDebtor, formatDateTime, formatMonthKey } from '../lib/store';
+import { AppData, PaymentRecord, formatSum, isStudentDebtor, formatDateTime, formatMonthKey, getGroupFinancialStats } from '../lib/store';
 import { Pencil, Trash2, Check, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -86,6 +86,91 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
           <span className="text-xl sm:text-2xl font-bold text-white/90">{formatSum(stats.totalCollected).replace(" so'm", "")}</span>
         </div>
       </div>
+
+      <div className="w-full h-px bg-white/5 line" />
+
+      {/* Guruhlar bo'yicha to'lov statistikasi */}
+      {data.groups.filter(g => !g.deletedAt && !g.archived).length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white/90">
+              Guruhlar bo'yicha to'lov statistikasi
+            </h3>
+            <span className="text-xs text-white/50">
+              {data.groups.filter(g => !g.deletedAt && !g.archived).length} ta faol guruh
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.groups.filter(g => !g.deletedAt && !g.archived).map(g => {
+              const gStats = getGroupFinancialStats(g, data.students, data.payments, monthKey);
+              return (
+                <div key={g.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col justify-between gap-3 hover:bg-white/[0.07] transition-all">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="font-bold text-white text-base truncate">{g.name}</h4>
+                      {g.time && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/10 text-white/80 font-medium">
+                          {g.time}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-white/40 mt-1 block">
+                      {gStats.totalStudents} ta o'quvchi • {gStats.debtorCount} ta qarzdor
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-xs">
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5 flex flex-col">
+                      <span className="text-[10px] text-emerald-400/80 font-medium">Yig'ilgan summa</span>
+                      <span className="font-bold text-emerald-400 text-sm mt-0.5">
+                        {formatSum(gStats.collectedAmount)}
+                      </span>
+                    </div>
+                    <div className={cn(
+                      "rounded-xl p-2.5 flex flex-col border",
+                      gStats.remainingAmount > 0 
+                        ? "bg-rose-500/10 border-rose-500/20" 
+                        : "bg-white/5 border-white/5"
+                    )}>
+                      <span className={cn(
+                        "text-[10px] font-medium",
+                        gStats.remainingAmount > 0 ? "text-rose-400/80" : "text-white/40"
+                      )}>
+                        Qolgan summa
+                      </span>
+                      <span className={cn(
+                        "font-bold text-sm mt-0.5",
+                        gStats.remainingAmount > 0 ? "text-rose-400" : "text-white/60"
+                      )}>
+                        {formatSum(gStats.remainingAmount)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="w-full">
+                    <div className="flex justify-between items-center text-[10px] text-white/40 mb-1">
+                      <span>Yig'ilgan foiz</span>
+                      <span className={cn("font-semibold", gStats.paidPercentage === 100 ? "text-emerald-400" : "text-white/70")}>
+                        {gStats.paidPercentage}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className={cn(
+                          "h-full rounded-full transition-all duration-300",
+                          gStats.paidPercentage === 100 ? "bg-emerald-400" : "bg-primary"
+                        )}
+                        style={{ width: `${gStats.paidPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="w-full h-px bg-white/5 line" />
 
