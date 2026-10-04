@@ -229,9 +229,12 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
                     {isEditing ? (
                       <div className="flex items-center gap-2">
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           value={editAmount}
-                          onChange={e => setEditAmount(e.target.value)}
+                          onChange={e => setEditAmount(e.target.value.replace(/\D/g, ''))}
+                          onWheel={e => e.currentTarget.blur()}
                           className="w-24 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm text-white focus:outline-none"
                         />
                         <button onClick={() => handleEditSave(p)} className="text-accent hover:bg-accent/20 p-1 rounded">

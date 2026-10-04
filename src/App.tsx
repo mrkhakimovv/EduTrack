@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppData } from './hooks/use-app-data';
 import { useAuth } from './components/FirebaseAuthProvider';
 import { AlertTriangle, User } from 'lucide-react';
@@ -42,6 +42,17 @@ export default function App() {
 
   const [showAllStudents, setShowAllStudents] = useState(false);
   const [showAllGroups, setShowAllGroups] = useState(false);
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (activeEl && activeEl.tagName === 'INPUT' && (activeEl as HTMLInputElement).type === 'number') {
+        activeEl.blur();
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
 
   if (!data) {
     return (
@@ -217,6 +228,7 @@ export default function App() {
                   setAttendance={setAttendance} 
                   toggleArchiveStudent={toggleArchiveStudent}
                   updateStudent={updateStudent}
+                  addPayment={addPayment}
                 />
               )}
               {activeTab === 'payment' && (

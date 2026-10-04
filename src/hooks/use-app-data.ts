@@ -3,64 +3,81 @@ import { AppData, Group, Student, PaymentRecord, AttendanceRecord, generateId } 
 import { db, auth } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/errorHelper';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, query, where, deleteField } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export function useAppData() {
   const [data, setData] = useState<AppData | null>(null);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    
-    const uid = auth.currentUser.uid;
-    const groupsRef = query(collection(db, 'groups'), where('userId', '==', uid));
-    const studentsRef = query(collection(db, 'students'), where('userId', '==', uid));
-    const paymentsRef = query(collection(db, 'payments'), where('userId', '==', uid));
-    const attendanceRef = query(collection(db, 'attendance'), where('userId', '==', uid));
+    let unsubGroups = () => {};
+    let unsubStudents = () => {};
+    let unsubPayments = () => {};
+    let unsubAttendance = () => {};
 
-    let currentData: AppData = {
-      groups: [],
-      students: [],
-      payments: [],
-      attendance: {}
-    };
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      unsubGroups();
+      unsubStudents();
+      unsubPayments();
+      unsubAttendance();
 
-    let groupsReady = false, studentsReady = false, paymentsReady = false, attendanceReady = false;
-    
-    const updateLocal = () => {
-      if (groupsReady && studentsReady && paymentsReady && attendanceReady) {
-        setData({ ...currentData });
+      if (!user) {
+        setData(null);
+        return;
       }
-    };
 
-    const unsubGroups = onSnapshot(groupsRef, (snap) => {
-      currentData.groups = snap.docs.map(d => ({ ...(d.data() as Group), id: d.id }));
-      groupsReady = true;
-      updateLocal();
-    }, (e) => handleFirestoreError(e, OperationType.LIST, 'groups'));
+      const uid = user.uid;
+      const groupsRef = query(collection(db, 'groups'), where('userId', '==', uid));
+      const studentsRef = query(collection(db, 'students'), where('userId', '==', uid));
+      const paymentsRef = query(collection(db, 'payments'), where('userId', '==', uid));
+      const attendanceRef = query(collection(db, 'attendance'), where('userId', '==', uid));
 
-    const unsubStudents = onSnapshot(studentsRef, (snap) => {
-      currentData.students = snap.docs.map(d => ({ ...(d.data() as Student), id: d.id }));
-      studentsReady = true;
-      updateLocal();
-    }, (e) => handleFirestoreError(e, OperationType.LIST, 'students'));
+      let currentData: AppData = {
+        groups: [],
+        students: [],
+        payments: [],
+        attendance: {}
+      };
 
-    const unsubPayments = onSnapshot(paymentsRef, (snap) => {
-      currentData.payments = snap.docs.map(d => ({ ...(d.data() as PaymentRecord), id: d.id }));
-      paymentsReady = true;
-      updateLocal();
-    }, (e) => handleFirestoreError(e, OperationType.LIST, 'payments'));
+      let groupsReady = false, studentsReady = false, paymentsReady = false, attendanceReady = false;
+      
+      const updateLocal = () => {
+        if (groupsReady && studentsReady && paymentsReady && attendanceReady) {
+          setData({ ...currentData });
+        }
+      };
 
-    const unsubAttendance = onSnapshot(attendanceRef, (snap) => {
+      unsubGroups = onSnapshot(groupsRef, (snap) => {
+        currentData.groups = snap.docs.map(d => ({ ...(d.data() as Group), id: d.id }));
+        groupsReady = true;
+        updateLocal();
+      }, (e) => handleFirestoreError(e, OperationType.LIST, 'groups'));
+
+      unsubStudents = onSnapshot(studentsRef, (snap) => {
+        currentData.students = snap.docs.map(d => ({ ...(d.data() as Student), id: d.id }));
+        studentsReady = true;
+        updateLocal();
+      }, (e) => handleFirestoreError(e, OperationType.LIST, 'students'));
+
+      unsubPayments = onSnapshot(paymentsRef, (snap) => {
+        currentData.payments = snap.docs.map(d => ({ ...(d.data() as PaymentRecord), id: d.id }));
+        paymentsReady = true;
+        updateLocal();
+      }, (e) => handleFirestoreError(e, OperationType.LIST, 'payments'));
+
+      unsubAttendance = onSnapshot(attendanceRef, (snap) => {
         const att: { [k: string]: AttendanceRecord } = {};
         snap.docs.forEach(d => {
-            const docData = d.data();
-            att[docData.groupId_month] = docData.records;
+          const docData = d.data();
+          att[docData.groupId_month] = docData.records;
         });
         currentData.attendance = att;
         attendanceReady = true;
         updateLocal();
-    }, (e) => handleFirestoreError(e, OperationType.LIST, 'attendance'));
+      }, (e) => handleFirestoreError(e, OperationType.LIST, 'attendance'));
+    });
 
     return () => {
+      unsubAuth();
       unsubGroups();
       unsubStudents();
       unsubPayments();

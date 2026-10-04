@@ -241,9 +241,12 @@ export function StudentModal({ initialData, groups, onClose, onSave }: StudentMo
                         <div>
                           <label className="block text-xs text-white/50 mb-1 ml-1">Doimiy to'lov</label>
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             value={pricing.monthly}
-                            onChange={e => updatePricing(gid, 'monthly', e.target.value)}
+                            onChange={e => updatePricing(gid, 'monthly', e.target.value.replace(/\D/g, ''))}
+                            onWheel={e => e.currentTarget.blur()}
                             placeholder="Masalan: 300000"
                             className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary/50"
                           />
@@ -251,9 +254,12 @@ export function StudentModal({ initialData, groups, onClose, onSave }: StudentMo
                         <div>
                           <label className="block text-xs text-white/50 mb-1 ml-1">Birinchi oy u-n</label>
                           <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             value={pricing.firstMonth}
-                            onChange={e => updatePricing(gid, 'firstMonth', e.target.value)}
+                            onChange={e => updatePricing(gid, 'firstMonth', e.target.value.replace(/\D/g, ''))}
+                            onWheel={e => e.currentTarget.blur()}
                             placeholder="Masalan: 150000"
                             className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary/50"
                           />

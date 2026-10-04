@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student, getGroupFinancialStats, formatSum } from '../lib/store';
+import { useMemo, useState, FormEvent } from 'react';
+import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student, getGroupFinancialStats, formatSum, getExpectedPayment, formatMonthKey, PaymentRecord } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle } from 'lucide-react';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, CheckCircle2, X } from 'lucide-react';
 
 
 interface AttendanceTabProps {
@@ -12,10 +12,52 @@ interface AttendanceTabProps {
   setAttendance: (groupId: string, monthKey: string, studentId: string, date: string, status: "present" | "absent" | undefined) => void;
   toggleArchiveStudent: (id: string) => void;
   updateStudent: (id: string, updates: any) => void;
+  addPayment?: (payment: Omit<PaymentRecord, "id" | "date">) => void;
 }
 
-export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent, updateStudent }: AttendanceTabProps) {
+export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent, updateStudent, addPayment }: AttendanceTabProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [payingStudent, setPayingStudent] = useState<Student | null>(null);
+  const [amountInput, setAmountInput] = useState<string>("");
+  const [paymentType, setPaymentType] = useState<"Naqd" | "Karta">("Naqd");
+  const [paymentNote, setPaymentNote] = useState<string>("");
+  const [toastMessage, setToastMessage] = useState<string>("");
+
+  const openPaymentModal = (student: Student) => {
+    setPayingStudent(student);
+    const debt = getDebtAmount(student, monthKey, data.payments);
+    if (debt > 0) {
+      setAmountInput(debt.toString());
+    } else {
+      const expected = getExpectedPayment(student, monthKey);
+      setAmountInput(expected > 0 ? expected.toString() : "");
+    }
+    setPaymentType("Naqd");
+    setPaymentNote("");
+  };
+
+  const handleConfirmPayment = (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    if (!payingStudent || !amountInput || !addPayment) return;
+    const amount = parseInt(amountInput.replace(/\D/g, ''), 10);
+    if (isNaN(amount) || amount <= 0) return;
+
+    const noteText = paymentNote.trim() ? `${paymentType} - ${paymentNote.trim()}` : paymentType;
+
+    addPayment({
+      studentId: payingStudent.id,
+      amount,
+      month: monthKey,
+      note: noteText
+    });
+
+    setToastMessage(`${payingStudent.fullName} uchun ${formatSum(amount)} to'lov qabul qilindi!`);
+    setTimeout(() => setToastMessage(""), 3500);
+
+    setPayingStudent(null);
+    setAmountInput("");
+    setPaymentNote("");
+  };
 
 
   const group = data.groups.find(g => g.id === selectedGroupId);
@@ -315,24 +357,43 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                 
                 return (
                   <tr key={student.id} className="hover:bg-white/5 transition-colors group/row">
-                    <td className="p-4 flex items-center justify-between sticky left-0 z-20 bg-sys-base group-hover/row:bg-sys-hover transition-colors border-r border-white/5 md:border-none shadow-[1px_0_0_rgba(255,255,255,0.05)]">
-                      <div className="flex flex-col">
-                        <span className={cn("text-sm font-medium", isDebtor ? "debt-glow text-white" : "text-white/90")}>
-                          {student.fullName}
-                        </span>
+                    <td className="p-3 sm:p-4 flex items-center justify-between sticky left-0 z-20 bg-sys-base group-hover/row:bg-sys-hover transition-colors border-r border-white/5 md:border-none shadow-[1px_0_0_rgba(255,255,255,0.05)]">
+                      <div 
+                        onClick={() => openPaymentModal(student)}
+                        className="flex flex-col cursor-pointer group/student flex-1 pr-2 py-1 rounded-xl hover:bg-white/[0.08] px-2 -ml-2 transition-all select-none"
+                        title="Ushbu oy uchun to'lov qabul qilish"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn(
+                            "text-sm font-semibold transition-colors group-hover/student:text-primary",
+                            isDebtor ? "debt-glow text-white" : "text-white/90"
+                          )}>
+                            {student.fullName}
+                          </span>
+                          <CreditCard className="h-3.5 w-3.5 text-white/30 group-hover/student:text-primary transition-colors shrink-0" />
+                        </div>
                         {isDebtor ? (
-                          <span className="text-[10px] text-destructive font-medium tracking-tight mt-0.5">
-                            {new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz
+                          <span className="text-[10px] text-destructive font-medium tracking-tight mt-0.5 flex items-center gap-1.5">
+                            <span>{new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-destructive/15 text-rose-300 font-semibold group-hover/student:bg-destructive/30 transition-colors">
+                              To'lash
+                            </span>
                           </span>
                         ) : (
-                          <span className="text-[10px] text-accent font-medium tracking-tight mt-0.5">
-                            To'langan
+                          <span className="text-[10px] text-accent font-medium tracking-tight mt-0.5 flex items-center gap-1.5">
+                            <span>To'langan</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent/15 text-accent font-semibold opacity-0 group-hover/student:opacity-100 transition-opacity">
+                              + To'lov
+                            </span>
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-1 ml-2">
                         <button
-                          onClick={() => toggleArchiveStudent(student.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleArchiveStudent(student.id);
+                          }}
                           className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
                           title="Arxivlash"
                         >
@@ -394,6 +455,173 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
         </div>
       )}
 
+      {/* Quick Payment Modal */}
+      {payingStudent && (
+        <div 
+          className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+          onClick={() => setPayingStudent(null)}
+        >
+          <div 
+            className="glass-card border border-white/15 bg-sys-base rounded-2xl sm:rounded-3xl w-full max-w-md my-auto shadow-2xl relative flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 pb-3 sm:pb-4 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white leading-tight">To'lovni qabul qilish</h3>
+                  <p className="text-xs text-white/50">{formatMonthKey(monthKey)} oyi uchun</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPayingStudent(null)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPayment} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-4">
+                {/* Student Info Card */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-white/50 shrink-0">O'quvchi:</span>
+                    <span className="text-sm font-bold text-white text-right truncate">{payingStudent.fullName}</span>
+                  </div>
+                  {group && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-white/50 shrink-0">Guruh:</span>
+                      <span className="text-xs font-medium text-white/80 text-right truncate">{group.name} ({group.time || 'Vaqtsiz'})</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <span className="text-xs text-white/50">Qarzdorlik holati:</span>
+                    {getDebtAmount(payingStudent, monthKey, data.payments) > 0 ? (
+                      <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+                        {formatSum(getDebtAmount(payingStudent, monthKey, data.payments))} qarz
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                        To'liq to'langan
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Payment Type Selection */}
+                <div>
+                  <label className="block text-xs font-medium text-white/60 mb-1.5 sm:mb-2">To'lov turi</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("Naqd")}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-sm font-medium transition-all",
+                        paymentType === "Naqd"
+                          ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-md shadow-emerald-500/10"
+                          : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <Banknote className="w-4 h-4" />
+                      <span>Naqd</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType("Karta")}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-sm font-medium transition-all",
+                        paymentType === "Karta"
+                          ? "bg-blue-500/20 border-blue-500/40 text-blue-300 shadow-md shadow-blue-500/10"
+                          : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Karta</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Amount Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                    <label className="text-xs font-medium text-white/60">To'lov summasi (so'm)</label>
+                    {getDebtAmount(payingStudent, monthKey, data.payments) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAmountInput(getDebtAmount(payingStudent, monthKey, data.payments).toString())}
+                        className="text-[11px] text-primary hover:underline font-medium"
+                      >
+                        To'liq qarz summasi
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={amountInput}
+                      onChange={e => setAmountInput(e.target.value.replace(/\D/g, ''))}
+                      onWheel={e => e.currentTarget.blur()}
+                      placeholder="0"
+                      required
+                      className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 sm:py-3 text-base sm:text-lg font-bold text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-white/40">
+                      so'm
+                    </span>
+                  </div>
+                </div>
+
+                {/* Optional Note */}
+                <div>
+                  <label className="block text-xs font-medium text-white/60 mb-1.5 sm:mb-2">Izoh (ixtiyoriy)</label>
+                  <input
+                    type="text"
+                    value={paymentNote}
+                    onChange={e => setPaymentNote(e.target.value)}
+                    placeholder="Masalan: oktyabr oyi to'lovi"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 sm:py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-4 sm:p-5 pt-3 border-t border-white/10 shrink-0 bg-sys-base/95 backdrop-blur-md flex items-center gap-2 sm:gap-3 rounded-b-2xl sm:rounded-b-3xl">
+                <button
+                  type="button"
+                  onClick={() => setPayingStudent(null)}
+                  className="flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white font-medium text-xs sm:text-sm transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={!amountInput || parseInt(amountInput, 10) <= 0}
+                  className="flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Qabul qilish</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-[130] bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl shadow-black/40 flex items-center gap-3 border border-emerald-400/30 animate-in slide-in-from-bottom-4 duration-300">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-200" />
+          <span className="text-sm font-semibold">{toastMessage}</span>
+        </div>
+      )}
 
     </div>
   );

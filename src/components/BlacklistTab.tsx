@@ -144,9 +144,12 @@ export function BlacklistTab({ data, monthKey, addPayment }: BlacklistTabProps) 
                     </button>
                   </div>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={amountInput}
-                    onChange={e => setAmountInput(e.target.value)}
+                    onChange={e => setAmountInput(e.target.value.replace(/\D/g, ''))}
+                    onWheel={e => e.currentTarget.blur()}
                     className="w-32 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
                     placeholder="Summa"
                   />

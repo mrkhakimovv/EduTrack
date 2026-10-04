@@ -105,9 +105,12 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
             <div className="sm:col-span-5 flex flex-col gap-1">
               <label className="block text-sm md:text-xs text-white/50 mb-1 ml-1">Summa (so'm)</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={amountInput}
-                onChange={e => setAmountInput(e.target.value)}
+                onChange={e => setAmountInput(e.target.value.replace(/\D/g, ''))}
+                onWheel={e => e.currentTarget.blur()}
                 placeholder="0"
                 className="w-full bg-black/20 border border-white/10 rounded-xl md:rounded-lg px-4 py-3 md:px-3 md:py-2 text-white text-lg md:text-base focus:outline-none focus:border-primary/50"
               />
