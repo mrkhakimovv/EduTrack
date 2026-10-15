@@ -1,11 +1,37 @@
 {
   "entities": {
+    "User": {
+      "title": "User",
+      "description": "User account in the system (admin, learning center admin, or teacher)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "teacher", "center_admin"] },
+        "centerId": { "type": "string" },
+        "centerCode": { "type": "string" },
+        "centerName": { "type": "string" },
+        "subject": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "phone": { "type": "string" },
+        "plainPassword": { "type": "string" },
+        "isBlocked": { "type": "boolean" },
+        "isUnlimited": { "type": "boolean" },
+        "appPayments": { "type": "object" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "fullName", "username", "role", "createdAt"]
+    },
     "Group": {
       "title": "Group",
       "description": "A group of students with a schedule",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
+        "centerId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
         "name": { "type": "string" },
         "time": { "type": "string" },
         "days": { "type": "array", "items": { "type": "number" } },
@@ -27,6 +53,9 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
+        "centerId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
         "fullName": { "type": "string" },
         "phone": { "type": "string" },
         "parentPhone": { "type": "string" },
@@ -54,6 +83,8 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
+        "centerId": { "type": "string" },
+        "teacherId": { "type": "string" },
         "studentId": { "type": "string" },
         "amount": { "type": "number" },
         "month": { "type": "string" },
@@ -69,6 +100,7 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
+        "centerId": { "type": "string" },
         "groupId_month": { "type": "string" },
         "records": { "type": "object" }
       },
@@ -76,21 +108,25 @@
     }
   },
   "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles including learning center accounts and teachers"
+    },
     "groups/{groupId}": {
       "schema": { "$ref": "#/entities/Group" },
-      "description": "Groups belonging to a user"
+      "description": "Groups belonging to a learning center or teacher"
     },
     "students/{studentId}": {
       "schema": { "$ref": "#/entities/Student" },
-      "description": "Students belonging to a user"
+      "description": "Students belonging to a learning center or teacher"
     },
     "payments/{paymentId}": {
       "schema": { "$ref": "#/entities/Payment" },
-      "description": "Payments tracked by a user"
+      "description": "Payments tracked by a learning center or teacher"
     },
     "attendance/{attendanceId}": {
       "schema": { "$ref": "#/entities/Attendance" },
-      "description": "Attendance per group-month tracked by a user"
+      "description": "Attendance per group-month tracked by a learning center or teacher"
     }
   }
 }

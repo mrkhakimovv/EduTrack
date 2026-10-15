@@ -11,9 +11,20 @@ service cloud.firestore {
     function existing() { return resource.data; }
     function isSignedIn() { return request.auth != null; }
 
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function canAccessCenter(ownerId) {
+      return isSignedIn() && (
+        request.auth.uid == ownerId ||
+        (currentUserDoc() != null && currentUserDoc().centerId == ownerId)
+      );
+    }
+
     function isValidGroup(data) {
       return data.keys().hasAll(['userId', 'name', 'time', 'days', 'createdAt'])
-        && data.userId == request.auth.uid
+        && canAccessCenter(data.userId)
         && data.name is string && data.name.size() <= 100
         && data.time is string && data.time.size() <= 20
         && data.days is list && data.days.size() <= 7
@@ -23,7 +34,7 @@ service cloud.firestore {
 
     function isValidStudent(data) {
       return data.keys().hasAll(['userId', 'fullName', 'phone', 'groupIds', 'joinDate', 'createdAt'])
-        && data.userId == request.auth.uid
+        && canAccessCenter(data.userId)
         && data.fullName is string && data.fullName.size() <= 100
         && data.phone is string && data.phone.size() <= 50
         && data.groupIds is list && data.groupIds.size() <= 50
@@ -34,7 +45,7 @@ service cloud.firestore {
 
     function isValidPayment(data) {
       return data.keys().hasAll(['userId', 'studentId', 'amount', 'month', 'date', 'note'])
-        && data.userId == request.auth.uid
+        && canAccessCenter(data.userId)
         && data.studentId is string
         && data.amount is number
         && data.month is string && data.month.size() <= 20
@@ -44,7 +55,7 @@ service cloud.firestore {
 
     function isValidAttendance(data) {
       return data.keys().hasAll(['userId', 'groupId_month', 'records'])
-        && data.userId == request.auth.uid
+        && canAccessCenter(data.userId)
         && data.groupId_month is string && data.groupId_month.size() <= 100
         && data.records is map;
     }
@@ -54,28 +65,28 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidGroup(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == request.auth.uid && isValidGroup(incoming());
+      allow read, delete: if isSignedIn() && canAccessCenter(resource.data.userId);
+      allow create: if isSignedIn() && canAccessCenter(incoming().userId) && isValidGroup(incoming());
+      allow update: if isSignedIn() && canAccessCenter(resource.data.userId) && canAccessCenter(incoming().userId) && isValidGroup(incoming());
     }
 
     match /students/{studentId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidStudent(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == request.auth.uid && isValidStudent(incoming());
+      allow read, delete: if isSignedIn() && canAccessCenter(resource.data.userId);
+      allow create: if isSignedIn() && canAccessCenter(incoming().userId) && isValidStudent(incoming());
+      allow update: if isSignedIn() && canAccessCenter(resource.data.userId) && canAccessCenter(incoming().userId) && isValidStudent(incoming());
     }
 
     match /payments/{paymentId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidPayment(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == request.auth.uid && isValidPayment(incoming());
+      allow read, delete: if isSignedIn() && canAccessCenter(resource.data.userId);
+      allow create: if isSignedIn() && canAccessCenter(incoming().userId) && isValidPayment(incoming());
+      allow update: if isSignedIn() && canAccessCenter(resource.data.userId) && canAccessCenter(incoming().userId) && isValidPayment(incoming());
     }
 
     match /attendance/{attendanceId} {
       allow read: if isSignedIn();
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidAttendance(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == request.auth.uid && isValidAttendance(incoming());
+      allow delete: if isSignedIn() && canAccessCenter(resource.data.userId);
+      allow create: if isSignedIn() && canAccessCenter(incoming().userId) && isValidAttendance(incoming());
+      allow update: if isSignedIn() && canAccessCenter(resource.data.userId) && canAccessCenter(incoming().userId) && isValidAttendance(incoming());
     }
   }
 }

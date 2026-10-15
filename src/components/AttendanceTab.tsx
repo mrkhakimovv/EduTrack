@@ -1,8 +1,72 @@
 import { useMemo, useState, FormEvent } from 'react';
 import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student, getGroupFinancialStats, formatSum, getExpectedPayment, formatMonthKey, PaymentRecord } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, CheckCircle2, X } from 'lucide-react';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, CheckCircle2, X, UserPlus, Sparkles, GraduationCap } from 'lucide-react';
 
+export interface ParsedTemplateStudent {
+  fullName: string;
+  phone: string;
+  monthlyPayment: number;
+  raw: string;
+  isValid: boolean;
+  error?: string;
+}
+
+export function parseStudentTemplate(input: string): ParsedTemplateStudent[] {
+  if (!input || !input.trim()) return [];
+
+  const bracketMatches = input.match(/\[(.*?)\]/gs);
+  let rawBlocks: string[] = [];
+
+  if (bracketMatches && bracketMatches.length > 0) {
+    rawBlocks = bracketMatches.map(b => b.trim().replace(/^\[\s*/, '').replace(/\s*\]$/, '').trim());
+  } else {
+    rawBlocks = input.split('\n').map(l => l.trim()).filter(Boolean);
+  }
+
+  return rawBlocks.map(block => {
+    const parts = block.split(';').map(p => {
+      let cleaned = p.trim();
+      if (cleaned.startsWith('+')) cleaned = cleaned.slice(1).trim();
+      while (cleaned.startsWith('(') && cleaned.endsWith(')')) {
+        cleaned = cleaned.slice(1, -1).trim();
+      }
+      return cleaned;
+    });
+
+    if (parts.length < 3) {
+      return {
+        fullName: parts[0] || '',
+        phone: parts[1] || '',
+        monthlyPayment: 0,
+        raw: block,
+        isValid: false,
+        error: "3 ta ma'lumot kiritilishi kerak: [+(Ism Familiya);+(telefon);+(summa)]"
+      };
+    }
+
+    const fullName = parts[0].trim();
+    const phone = parts[1].trim();
+    const amountStr = parts[2].replace(/[^\d]/g, '');
+    const monthlyPayment = parseInt(amountStr, 10);
+
+    if (!fullName) {
+      return { fullName: '', phone, monthlyPayment: 0, raw: block, isValid: false, error: "Ism Familiya kiritilmagan" };
+    }
+
+    if (isNaN(monthlyPayment) || monthlyPayment <= 0) {
+      return { fullName, phone, monthlyPayment: 0, raw: block, isValid: false, error: "To'lov summasi noto'g'ri kiritilgan" };
+    }
+
+    return {
+      fullName,
+      phone,
+      monthlyPayment,
+      raw: block,
+      isValid: true
+    };
+  });
+}
 
 interface AttendanceTabProps {
   data: AppData;
@@ -13,15 +77,30 @@ interface AttendanceTabProps {
   toggleArchiveStudent: (id: string) => void;
   updateStudent: (id: string, updates: any) => void;
   addPayment?: (payment: Omit<PaymentRecord, "id" | "date">) => void;
+  addStudent?: (student: Omit<Student, "id" | "createdAt">) => void | Promise<void>;
+  teachers?: any[];
+  onEditGroup?: (id: string) => void;
 }
 
-export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent, updateStudent, addPayment }: AttendanceTabProps) {
+export function AttendanceTab({ data, monthKey, year, month, setAttendance, toggleArchiveStudent, updateStudent, addPayment, addStudent, teachers = [], onEditGroup }: AttendanceTabProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [payingStudent, setPayingStudent] = useState<Student | null>(null);
   const [amountInput, setAmountInput] = useState<string>("");
   const [paymentType, setPaymentType] = useState<"Naqd" | "Karta">("Naqd");
   const [paymentNote, setPaymentNote] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string>("");
+
+  const [showTemplateModal, setShowTemplateModal] = useState<boolean>(false);
+  const [templateInput, setTemplateInput] = useState<string>("");
+  const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
+
+  const parsedTemplateStudents = useMemo(() => {
+    return parseStudentTemplate(templateInput);
+  }, [templateInput]);
+
+  const validTemplateStudents = useMemo(() => {
+    return parsedTemplateStudents.filter(s => s.isValid);
+  }, [parsedTemplateStudents]);
 
   const openPaymentModal = (student: Student) => {
     setPayingStudent(student);
@@ -59,6 +138,41 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
     setPaymentNote("");
   };
 
+  const handleSaveTemplateStudents = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    if (!addStudent || !selectedGroupId || validTemplateStudents.length === 0) return;
+    setIsSavingTemplate(true);
+    try {
+      for (const s of validTemplateStudents) {
+        const newStudent: Omit<Student, "id" | "createdAt"> = {
+          fullName: s.fullName,
+          phone: s.phone,
+          parentPhone: s.phone,
+          school: "",
+          grade: "",
+          groupIds: [selectedGroupId],
+          joinDate: new Date().toISOString().split('T')[0],
+          firstMonthPayment: s.monthlyPayment,
+          monthlyPayment: s.monthlyPayment,
+          groupPricing: {
+            [selectedGroupId]: {
+              monthly: s.monthlyPayment,
+              firstMonth: s.monthlyPayment
+            }
+          }
+        };
+        await addStudent(newStudent);
+      }
+      setToastMessage(`${validTemplateStudents.length} ta o'quvchi muvaffaqiyatli qo'shildi!`);
+      setTimeout(() => setToastMessage(""), 3500);
+      setShowTemplateModal(false);
+      setTemplateInput("");
+    } catch (err) {
+      console.error("Error creating students from template:", err);
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
 
   const group = data.groups.find(g => g.id === selectedGroupId);
   
@@ -132,6 +246,23 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
     return groupsStatsMap.get(group.id) || getGroupFinancialStats(group, data.students, data.payments, monthKey);
   }, [group, groupsStatsMap, data.students, data.payments, monthKey]);
 
+  const getTeacherInfo = (g: any) => {
+    if (g?.teacherName && g.teacherName.trim()) {
+      return { name: g.teacherName.trim(), isAssigned: true };
+    }
+    if (g?.teacherId) {
+      const match = teachers.find(t => t.uid === g.teacherId || t.id === g.teacherId || t.teacherId === g.teacherId);
+      if (match?.fullName) {
+        return { name: match.fullName, isAssigned: true };
+      }
+    }
+    // Fallback: If center currently has exactly 1 teacher, auto-fallback to that teacher
+    if (teachers && teachers.length === 1 && teachers[0]?.fullName) {
+      return { name: teachers[0].fullName, isAssigned: true };
+    }
+    return { name: "Biriktirilmagan", isAssigned: false };
+  };
+
   if (activeGroups.length === 0) {
     return <div className="text-center text-white/50 py-8">Hali guruhlar yo'q</div>;
   }
@@ -172,7 +303,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                 className="glass-card hover:bg-white/[0.08] border border-white/10 hover:border-white/20 rounded-2xl p-4 sm:p-5 text-left transition-all flex flex-col justify-between group shadow-lg shadow-black/10 gap-3"
               >
                 <div className="flex items-start justify-between gap-3 w-full">
-                  <div>
+                  <div className="flex-1 min-w-0 pr-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors">{g.name}</h3>
                       {g.time && (
@@ -180,6 +311,29 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                           {g.time}
                         </span>
                       )}
+                      {(() => {
+                        const tInfo = getTeacherInfo(g);
+                        return (
+                          <span
+                            onClick={(e) => {
+                              if (onEditGroup) {
+                                e.stopPropagation();
+                                onEditGroup(g.id);
+                              }
+                            }}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium border transition-all cursor-pointer shadow-sm",
+                              tInfo.isAssigned
+                                ? "bg-purple-500/20 border-purple-500/35 text-purple-200 hover:bg-purple-500/30"
+                                : "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+                            )}
+                            title={tInfo.isAssigned ? `Mas'ul o'qituvchi: ${tInfo.name} (O'zgartirish uchun bosing)` : "O'qituvchi biriktirish uchun bosing"}
+                          >
+                            <GraduationCap className={cn("w-3.5 h-3.5 shrink-0", tInfo.isAssigned ? "text-purple-300" : "text-amber-400")} />
+                            <span>{tInfo.name}</span>
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className="text-xs text-white/50 mt-1">
                       {daysStr} • {gStats.totalStudents} ta o'quvchi
@@ -268,7 +422,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
       "flex flex-col h-full",
       selectedGroupId ? "fixed inset-0 z-[100] h-[100dvh] bg-sys-base md:static md:h-full md:z-auto md:bg-transparent" : ""
     )}>
-      <div className="p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 shrink-0 pt-6 md:pt-6">
+      <div className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/5 shrink-0 pt-6 md:pt-6">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setSelectedGroupId("")} 
@@ -277,13 +431,52 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-bold text-white/90">
-              {group?.name} <span className="text-white/40 text-base font-normal ml-2">{group?.time}</span>
-            </h2>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-xl font-bold text-white/90">
+                {group?.name} <span className="text-white/40 text-base font-normal ml-2">{group?.time}</span>
+              </h2>
+              {group && (() => {
+                const tInfo = getTeacherInfo(group);
+                return (
+                  <span
+                    onClick={() => {
+                      if (onEditGroup && group) {
+                        onEditGroup(group.id);
+                      }
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium border transition-all cursor-pointer shadow-sm",
+                      tInfo.isAssigned
+                        ? "bg-purple-500/20 border-purple-500/35 text-purple-200 hover:bg-purple-500/30"
+                        : "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+                    )}
+                    title="O'qituvchini o'zgartirish yoki biriktirish"
+                  >
+                    <GraduationCap className={cn("w-3.5 h-3.5 shrink-0", tInfo.isAssigned ? "text-purple-300" : "text-amber-400")} />
+                    <span>O'qituvchi: {tInfo.name}</span>
+                  </span>
+                );
+              })()}
+            </div>
             <p className="text-sm text-white/50">
               {lessonDates.length} ta dars • {studentsInGroup.length} ta o'quvchi
             </p>
           </div>
+        </div>
+
+        {/* O'quvchi qo'shish (shablon) button */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setTemplateInput("");
+              setShowTemplateModal(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/25 border border-emerald-400/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <UserPlus className="w-4 h-4 shrink-0" />
+            <span>O'quvchi qo'shish</span>
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 sm:gap-6">
@@ -608,6 +801,153 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                 >
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Qabul qilish</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Template Student Modal */}
+      {showTemplateModal && (
+        <div 
+          className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+          onClick={() => setShowTemplateModal(false)}
+        >
+          <div 
+            className="glass-card border border-white/15 bg-sys-base rounded-2xl sm:rounded-3xl w-full max-w-lg my-auto shadow-2xl relative flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 pb-3 sm:pb-4 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-white leading-tight">Shablon orqali o'quvchi qo'shish</h3>
+                  <p className="text-xs text-white/50">{group?.name} guruhi uchun</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTemplateModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTemplateStudents} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-4">
+                {/* Format guide banner */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-white/70">Kiritish tartibi (shablon):</span>
+                    <button
+                      type="button"
+                      onClick={() => setTemplateInput("[+(Ism Familiya);+(+998901234567);+(300000)]")}
+                      className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium hover:underline flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Namuna qo'yish
+                    </button>
+                  </div>
+                  <div className="bg-black/30 border border-white/5 rounded-xl px-3 py-2 text-xs font-mono text-emerald-300 select-all break-all">
+                    [+(Ism Familiya);+(telefon raqam);+(oylik to'lov summasi)]
+                  </div>
+                  <p className="text-[11px] text-white/50 leading-relaxed">
+                    Bir yoki bir nechta o'quvchini ketma-ket qatorlarda kiritishingiz mumkin. Kiritilgan o'quvchilar ushbu guruhga avtomatik qo'shiladi va barcha imkoniyatlar (davomat, to'lovlar, qarz hisobi) to'liq ishlaydi.
+                  </p>
+                </div>
+
+                {/* Input Textarea */}
+                <div>
+                  <label className="block text-xs font-medium text-white/60 mb-1.5">
+                    O'quvchi ma'lumotlari matni
+                  </label>
+                  <textarea
+                    value={templateInput}
+                    onChange={e => setTemplateInput(e.target.value)}
+                    rows={4}
+                    placeholder={`[+(Xurramov Eldor);+(+998901234567);+(300000)]\n[+(Karimov Sardor);+(+998912345678);+(350000)]`}
+                    className="w-full bg-white/5 border border-white/15 rounded-xl p-3 text-sm text-white font-mono placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all custom-scrollbar resize-y min-h-[90px]"
+                  />
+                </div>
+
+                {/* Live Preview List */}
+                {parsedTemplateStudents.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-white/60 px-0.5">
+                      <span>Tanib olingan o'quvchilar ({validTemplateStudents.length}/{parsedTemplateStudents.length}):</span>
+                    </div>
+
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                      {parsedTemplateStudents.map((s, idx) => (
+                        <div 
+                          key={idx}
+                          className={cn(
+                            "rounded-xl p-3 border text-xs flex items-center justify-between gap-3 transition-colors",
+                            s.isValid 
+                              ? "bg-emerald-500/5 border-emerald-500/20 text-white" 
+                              : "bg-rose-500/5 border-rose-500/20 text-rose-300"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {s.isValid ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <div className="font-semibold text-white truncate">
+                                {s.fullName || "(Nomsiz)"}
+                              </div>
+                              <div className="text-[11px] text-white/50 truncate">
+                                {s.phone ? `Tel: ${s.phone}` : "Tel: kiritilmagan"}
+                              </div>
+                              {!s.isValid && s.error && (
+                                <div className="text-[10px] text-rose-400 mt-0.5">{s.error}</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {s.isValid && (
+                            <div className="text-right shrink-0">
+                              <div className="font-bold text-emerald-400">{formatSum(s.monthlyPayment)}</div>
+                              <div className="text-[10px] text-white/40">oylik to'lov</div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-4 sm:p-5 pt-3 border-t border-white/10 shrink-0 bg-sys-base/95 backdrop-blur-md flex items-center gap-2 sm:gap-3 rounded-b-2xl sm:rounded-b-3xl">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateModal(false)}
+                  className="flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white font-medium text-xs sm:text-sm transition-colors"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={validTemplateStudents.length === 0 || isSavingTemplate}
+                  className="flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                >
+                  {isSavingTemplate ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Saqlash {validTemplateStudents.length > 0 ? `(${validTemplateStudents.length} ta)` : ''}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

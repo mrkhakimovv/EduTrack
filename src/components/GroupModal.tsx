@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Group, DAY_NAMES } from '../lib/store';
 import { cn } from '../lib/utils';
-import { X } from 'lucide-react';
+import { X, User } from 'lucide-react';
 
 interface GroupModalProps {
   initialData?: Group | null;
+  teachers?: any[];
   onClose: () => void;
   onSave: (group: Omit<Group, "id">) => void;
 }
 
-export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
+export function GroupModal({ initialData, teachers = [], onClose, onSave }: GroupModalProps) {
   const [name, setName] = useState("");
   const [time, setTime] = useState("");
   const [days, setDays] = useState<number[]>([]);
   const [monthlyPayment, setMonthlyPayment] = useState("");
+  const [teacherId, setTeacherId] = useState("");
+  const [teacherName, setTeacherName] = useState("");
   const [createdAt, setCreatedAt] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
@@ -22,26 +25,49 @@ export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
       setTime(initialData.time);
       setDays(initialData.days);
       setMonthlyPayment(initialData.monthlyPayment?.toString() || "");
+      
+      const existingTId = initialData.teacherId || (teachers.length === 1 ? (teachers[0].uid || teachers[0].id) : "");
+      setTeacherId(existingTId);
+      const existingTName = initialData.teacherName || (teachers.length === 1 ? teachers[0].fullName : "");
+      setTeacherName(existingTName);
+
       if (initialData.createdAt) {
         setCreatedAt(initialData.createdAt.split('T')[0]);
       }
+    } else {
+      if (teachers.length === 1) {
+        setTeacherId(teachers[0].uid || teachers[0].id);
+        setTeacherName(teachers[0].fullName);
+      }
     }
-  }, [initialData]);
+  }, [initialData, teachers]);
 
   const toggleDay = (d: number) => {
     setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
   };
 
+  const handleTeacherChange = (tId: string) => {
+    setTeacherId(tId);
+    if (!tId) {
+      setTeacherName("");
+    } else {
+      const selected = teachers.find(t => t.uid === tId || t.id === tId);
+      setTeacherName(selected ? selected.fullName : "");
+    }
+  };
+
   const handleSave = () => {
     if (!name.trim()) return;
     
-    // Convert YYYY-MM-DD back to an ISO string or just store it.
-    // Assuming createdAt in store can be a simple date string, but for consistency we can append the time.
     let createdIso = createdAt;
     if (createdAt.length === 10) {
-      // It's just a date, append current time to make it valid ISO if needed, or keep it.
-      // But standard createdAt is ISO string. 
       createdIso = new Date(createdAt + 'T12:00:00Z').toISOString();
+    }
+
+    let finalTeacherName = teacherName;
+    if (teacherId && !finalTeacherName) {
+      const selected = teachers.find(t => t.uid === teacherId || t.id === teacherId);
+      if (selected) finalTeacherName = selected.fullName;
     }
     
     onSave({ 
@@ -49,6 +75,8 @@ export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
       time, 
       days,
       monthlyPayment: monthlyPayment ? parseInt(monthlyPayment.replace(/\D/g, ''), 10) : undefined,
+      teacherId: teacherId || undefined,
+      teacherName: finalTeacherName || undefined,
       createdAt: createdIso
     });
   };
@@ -79,12 +107,33 @@ export function GroupModal({ initialData, onClose, onSave }: GroupModalProps) {
             />
           </div>
 
+          {teachers.length > 0 && (
+            <div>
+              <label className="block text-sm text-white/70 mb-1 ml-1">Mas'ul o'qituvchi</label>
+              <div className="relative">
+                <User className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <select
+                  value={teacherId}
+                  onChange={e => handleTeacherChange(e.target.value)}
+                  className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-primary/50 text-sm [color-scheme:dark]"
+                >
+                  <option value="">Biriktirilmagan (barcha o'qituvchilar)</option>
+                  {teachers.map(t => (
+                    <option key={t.uid || t.id} value={t.uid || t.id}>
+                      {t.fullName} ({t.subject || "O'qituvchi"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm text-white/70 mb-1 ml-1">Oylik to'lov summasi</label>
             <input
               type="text"
               value={monthlyPayment}
-              onChange={e => setMonthlyPayment(e.target.value)}
+              onChange={e => setMonthlyPayment(e.target.value.replace(/\D/g, ''))}
               placeholder="Masalan: 300000"
               className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary/50"
             />

@@ -4,6 +4,9 @@ export interface Group {
   time: string;
   days: number[];
   monthlyPayment?: number;
+  centerId?: string;
+  teacherId?: string;
+  teacherName?: string;
   createdAt: string;
   archived?: boolean;
   archivedAt?: string;
@@ -32,6 +35,9 @@ export interface Student {
   firstMonthPayment: number;
   monthlyPayment: number;
   groupPricing?: Record<string, { monthly: number, firstMonth: number }>;
+  centerId?: string;
+  teacherId?: string;
+  teacherName?: string;
   createdAt: string;
   archived?: boolean;
   archivedAt?: string;
@@ -67,6 +73,8 @@ export interface PaymentRecord {
   month: string;
   date: string;
   note: string;
+  centerId?: string;
+  teacherId?: string;
   editDates?: string[];
 }
 

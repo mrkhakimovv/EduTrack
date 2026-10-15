@@ -1,5 +1,4 @@
-import { GraduationCap, BookOpen, Users, LayoutGrid, Sun, Moon, Droplet, LogOut, Menu, X } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { GraduationCap, BookOpen, Users, LayoutGrid, Sun, Moon, Droplet, LogOut, Menu, X, Building2, UserPlus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -10,13 +9,19 @@ interface HeaderProps {
   onAddStudent: () => void;
   onShowAllStudents: () => void;
   onShowAllGroups: () => void;
+  onOpenTeachers?: () => void;
+  onOpenAddTeacher?: () => void;
+  teachersCount?: number;
 }
 
 export function Header({
   onCreateGroup,
   onAddStudent,
   onShowAllStudents,
-  onShowAllGroups
+  onShowAllGroups,
+  onOpenTeachers,
+  onOpenAddTeacher,
+  teachersCount = 0
 }: HeaderProps) {
   const [theme, setTheme] = useState<'dark' | 'light' | 'blue'>('dark');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -59,6 +64,8 @@ export function Header({
     return <Moon className="w-5 h-5" />;
   };
 
+  const isCenterAdmin = appUser?.role === 'center_admin';
+
   return (
     <header className="min-h-[5rem] py-3 sm:py-0 glass-card border-b border-white/10 flex items-center px-3 sm:px-8 shrink-0 relative z-50">
       <div className="mx-auto w-full flex flex-wrap max-w-7xl items-center justify-between gap-y-3 relative">
@@ -71,18 +78,53 @@ export function Header({
           </button>
           
           <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-500/30 hidden sm:flex">
-            <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7 text-blue-500" />
+            {isCenterAdmin ? (
+              <Building2 className="h-6 w-6 sm:h-7 sm:w-7 text-blue-400" />
+            ) : (
+              <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7 text-blue-500" />
+            )}
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-blue-500 sm:hidden" />
-              EduTrack
-            </h1>
-            <p className="text-[9px] sm:text-[10px] sm:text-xs text-white/50 uppercase tracking-widest leading-none">Davomat va to'lovlar</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-blue-500 sm:hidden" />
+                EduTrack
+              </h1>
+              {isCenterAdmin ? (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-semibold">
+                  <Building2 className="w-3.5 h-3.5" />
+                  {appUser?.centerName || "O'quv markaz"}
+                </span>
+              ) : appUser?.centerName ? (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-medium">
+                  {appUser.centerName}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-[9px] sm:text-[10px] sm:text-xs text-white/50 uppercase tracking-widest leading-none mt-0.5">
+              {isCenterAdmin ? "Markaz boshqaruvi va o'qituvchilar" : "Davomat va to'lovlar"}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+          {/* Center Admin Teachers Button */}
+          {isCenterAdmin && onOpenTeachers && (
+            <button
+              onClick={onOpenTeachers}
+              className="px-3 sm:px-4 py-2 rounded-xl bg-purple-600/25 hover:bg-purple-600/35 text-purple-200 border border-purple-400/30 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all hover:scale-[1.02] shadow-sm"
+              title="O'quv markaz o'qituvchilarini boshqarish"
+            >
+              <Users className="h-4 w-4 text-purple-300" />
+              <span>O'qituvchilar</span>
+              {teachersCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-purple-500/40 text-white rounded-full text-[11px] font-bold">
+                  {teachersCount}
+                </span>
+              )}
+            </button>
+          )}
+
           <button 
             onClick={toggleTheme}
             className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white border border-white/5 transition-colors"
@@ -138,7 +180,25 @@ export function Header({
 
         {/* Mobile Dropdown Menu */}
         {isMobileMenuOpen && (
-          <div className="sm:hidden absolute top-[110%] left-0 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col p-2 gap-1 animate-in fade-in slide-in-from-top-2">
+          <div className="sm:hidden absolute top-[110%] left-0 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col p-2 gap-1 animate-in fade-in slide-from-top-2">
+            {isCenterAdmin && onOpenTeachers && (
+              <button
+                onClick={() => { onOpenTeachers(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 transition-colors w-full text-left"
+              >
+                <Users className="h-4 w-4 text-purple-400" />
+                <span>O'qituvchilar ({teachersCount})</span>
+              </button>
+            )}
+            {isCenterAdmin && onOpenAddTeacher && (
+              <button
+                onClick={() => { onOpenAddTeacher(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-purple-300 hover:bg-purple-500/10 transition-colors w-full text-left"
+              >
+                <UserPlus className="h-4 w-4 text-purple-400" />
+                <span>O'qituvchi qo'shish</span>
+              </button>
+            )}
             <button
               onClick={() => { onCreateGroup(); setIsMobileMenuOpen(false); }}
               className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"

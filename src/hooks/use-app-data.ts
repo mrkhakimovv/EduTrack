@@ -1,12 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, Group, Student, PaymentRecord, AttendanceRecord, generateId } from '../lib/store';
 import { db, auth } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/errorHelper';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, query, where, deleteField } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, query, where, deleteField, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { AppUser } from '../components/FirebaseAuthProvider';
 
-export function useAppData() {
+export function useAppData(appUser?: AppUser | null) {
   const [data, setData] = useState<AppData | null>(null);
+  const appUserRef = useRef(appUser);
+  appUserRef.current = appUser;
+
+  const getTargetCenterId = useCallback(async (userUid: string): Promise<string> => {
+    if (appUserRef.current?.centerId) {
+      return appUserRef.current.centerId;
+    }
+    try {
+      const uSnap = await getDoc(doc(db, 'users', userUid));
+      if (uSnap.exists()) {
+        const uData = uSnap.data();
+        if (uData.centerId) return uData.centerId;
+      }
+    } catch (e) {
+      console.warn("Could not retrieve centerId from user doc:", e);
+    }
+    return userUid;
+  }, []);
 
   useEffect(() => {
     let unsubGroups = () => {};
@@ -14,7 +33,7 @@ export function useAppData() {
     let unsubPayments = () => {};
     let unsubAttendance = () => {};
 
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
       unsubGroups();
       unsubStudents();
       unsubPayments();
@@ -25,11 +44,13 @@ export function useAppData() {
         return;
       }
 
-      const uid = user.uid;
-      const groupsRef = query(collection(db, 'groups'), where('userId', '==', uid));
-      const studentsRef = query(collection(db, 'students'), where('userId', '==', uid));
-      const paymentsRef = query(collection(db, 'payments'), where('userId', '==', uid));
-      const attendanceRef = query(collection(db, 'attendance'), where('userId', '==', uid));
+      // Determine the shared center ID (or user's own UID if independent)
+      const targetCenterId = await getTargetCenterId(user.uid);
+
+      const groupsRef = query(collection(db, 'groups'), where('userId', '==', targetCenterId));
+      const studentsRef = query(collection(db, 'students'), where('userId', '==', targetCenterId));
+      const paymentsRef = query(collection(db, 'payments'), where('userId', '==', targetCenterId));
+      const attendanceRef = query(collection(db, 'attendance'), where('userId', '==', targetCenterId));
 
       let currentData: AppData = {
         groups: [],
@@ -83,17 +104,25 @@ export function useAppData() {
       unsubPayments();
       unsubAttendance();
     };
-  }, []);
+  }, [appUser?.centerId, getTargetCenterId]);
 
   const addGroup = useCallback(async (group: Omit<Group, "id">) => {
     if (!auth.currentUser) return;
+    const centerId = await getTargetCenterId(auth.currentUser.uid);
     const newId = generateId();
     const docRef = doc(db, 'groups', newId);
     try {
       const createdAt = group.createdAt || new Date().toISOString();
-      await setDoc(docRef, { ...group, userId: auth.currentUser.uid, createdAt });
+      await setDoc(docRef, JSON.parse(JSON.stringify({ 
+        ...group, 
+        userId: centerId,
+        centerId: centerId,
+        teacherId: group.teacherId || (appUserRef.current?.role === 'teacher' ? auth.currentUser.uid : undefined),
+        teacherName: group.teacherName || (appUserRef.current?.role === 'teacher' ? appUserRef.current.fullName : undefined),
+        createdAt 
+      })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `groups/${newId}`); }
-  }, []);
+  }, [getTargetCenterId]);
 
   const updateGroup = useCallback(async (id: string, updates: Partial<Omit<Group, "id">>) => {
     if (!data || !auth.currentUser) return;
@@ -144,11 +173,19 @@ export function useAppData() {
 
   const addStudent = useCallback(async (student: Omit<Student, "id" | "createdAt">) => {
     if (!auth.currentUser) return;
+    const centerId = await getTargetCenterId(auth.currentUser.uid);
     const newId = generateId();
     try {
-      await setDoc(doc(db, 'students', newId), JSON.parse(JSON.stringify({ ...student, userId: auth.currentUser.uid, createdAt: new Date().toISOString() })));
+      await setDoc(doc(db, 'students', newId), JSON.parse(JSON.stringify({ 
+        ...student, 
+        userId: centerId,
+        centerId: centerId,
+        teacherId: student.teacherId || (appUserRef.current?.role === 'teacher' ? auth.currentUser.uid : undefined),
+        teacherName: student.teacherName || (appUserRef.current?.role === 'teacher' ? appUserRef.current.fullName : undefined),
+        createdAt: new Date().toISOString() 
+      })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `students/${newId}`); }
-  }, []);
+  }, [getTargetCenterId]);
 
   const updateStudent = useCallback(async (id: string, updates: Partial<Omit<Student, "id" | "createdAt">>) => {
     if (!data || !auth.currentUser) return;
@@ -211,11 +248,13 @@ export function useAppData() {
 
   const setAttendance = useCallback(async (groupId: string, monthKey: string, studentId: string, date: string, status: "present" | "absent" | undefined) => {
     if (!data || !auth.currentUser) return;
+    const centerId = await getTargetCenterId(auth.currentUser.uid);
     const key = `${groupId}_${monthKey}`;
     const docId = `att_${key}`;
     try {
       await setDoc(doc(db, 'attendance', docId), {
-        userId: auth.currentUser.uid,
+        userId: centerId,
+        centerId: centerId,
         groupId_month: key,
         records: {
           [studentId]: {
@@ -224,15 +263,22 @@ export function useAppData() {
         }
       }, { merge: true });
     } catch (e) { handleFirestoreError(e, OperationType.WRITE, `attendance/${docId}`); }
-  }, [data]);
+  }, [data, getTargetCenterId]);
 
   const addPayment = useCallback(async (payment: Omit<PaymentRecord, "id" | "date">) => {
     if (!auth.currentUser) return;
+    const centerId = await getTargetCenterId(auth.currentUser.uid);
     const newId = generateId();
     try {
-      await setDoc(doc(db, 'payments', newId), JSON.parse(JSON.stringify({ ...payment, userId: auth.currentUser.uid, date: new Date().toISOString() })));
+      await setDoc(doc(db, 'payments', newId), JSON.parse(JSON.stringify({ 
+        ...payment, 
+        userId: centerId,
+        centerId: centerId,
+        teacherId: appUserRef.current?.uid,
+        date: new Date().toISOString() 
+      })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `payments/${newId}`); }
-  }, []);
+  }, [getTargetCenterId]);
 
   const updatePayment = useCallback(async (id: string, updates: Partial<Omit<PaymentRecord, "id" | "date">>) => {
     if (!auth.currentUser) return;

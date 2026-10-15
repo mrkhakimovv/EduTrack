@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { AppData, DAY_NAMES_SHORT, formatSum } from '../lib/store';
-import { X, Pencil, Trash2, Archive, ArchiveRestore, Upload, ArrowLeft } from 'lucide-react';
+import { X, Pencil, Trash2, Archive, ArchiveRestore, Upload, ArrowLeft, GraduationCap } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export interface AllGroupsProps {
   data: AppData;
+  teachers?: any[];
   onClose: () => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
@@ -16,6 +17,7 @@ export interface AllGroupsProps {
 
 export function AllGroups({ 
   data, 
+  teachers = [],
   onClose, 
   onEdit, 
   onDelete, 
@@ -35,6 +37,22 @@ export function AllGroups({
   const activeCount = data.groups.filter(g => !g.deletedAt && !g.archived).length;
   const archivedCount = data.groups.filter(g => !g.deletedAt && g.archived).length;
 
+  const getTeacherInfo = (g: any) => {
+    if (g?.teacherName && g.teacherName.trim()) {
+      return { name: g.teacherName.trim(), isAssigned: true };
+    }
+    if (g?.teacherId) {
+      const match = teachers.find(t => t.uid === g.teacherId || t.id === g.teacherId || t.teacherId === g.teacherId);
+      if (match?.fullName) {
+        return { name: match.fullName, isAssigned: true };
+      }
+    }
+    if (teachers && teachers.length === 1 && teachers[0]?.fullName) {
+      return { name: teachers[0].fullName, isAssigned: true };
+    }
+    return { name: "Biriktirilmagan", isAssigned: false };
+  };
+
   if (selectedGroupId) {
     const group = data.groups.find(g => g.id === selectedGroupId);
     if (!group) {
@@ -43,6 +61,7 @@ export function AllGroups({
     }
 
     const groupStudents = data.students.filter(s => !s.deletedAt && !s.archived && s.groupIds?.includes(group.id));
+    const tInfo = getTeacherInfo(group);
 
     return (
       <div className="fixed inset-0 z-[60] bg-sys-base/95 backdrop-blur-md overflow-y-auto w-full h-full">
@@ -56,9 +75,18 @@ export function AllGroups({
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <div>
-                <div className="flex items-center gap-3 mb-1">
+                <div className="flex items-center gap-3 mb-1 flex-wrap">
                   <h2 className="text-xl sm:text-2xl font-bold text-white max-w-[200px] sm:max-w-xs truncate">{group.name}</h2>
                   <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-sm font-medium">{group.time}</span>
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium border",
+                    tInfo.isAssigned
+                      ? "bg-purple-500/20 border-purple-500/30 text-purple-200"
+                      : "bg-white/5 border-white/10 text-white/50"
+                  )}>
+                    <GraduationCap className={cn("w-3.5 h-3.5 shrink-0", tInfo.isAssigned ? "text-purple-300" : "text-white/40")} />
+                    <span>O'qituvchi: {tInfo.name}</span>
+                  </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-white/60">
                   <span>{groupStudents.length} ta o'quvchi</span>
@@ -190,9 +218,25 @@ export function AllGroups({
                   className={cn("glass-card rounded-2xl p-5 hover:bg-white/[0.04] cursor-pointer transition-colors group", group.archived && "opacity-70")}
                 >
                   <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-bold text-lg text-white/90">{group.name}</h3>
-                      <p className="text-primary font-medium">{group.time || "Vaqt korsatilmagan"}</p>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-lg text-white/90">{group.name}</h3>
+                        {(() => {
+                          const tInfo = getTeacherInfo(group);
+                          return (
+                            <span className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border",
+                              tInfo.isAssigned
+                                ? "bg-purple-500/20 border-purple-500/30 text-purple-200"
+                                : "bg-white/5 border-white/10 text-white/40"
+                            )}>
+                              <GraduationCap className="w-3 h-3 text-purple-300" />
+                              <span>{tInfo.name}</span>
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      <p className="text-primary font-medium text-sm mt-0.5">{group.time || "Vaqt ko'rsatilmagan"}</p>
                     </div>
                     {deletingId === group.id ? (
                       <div className="flex flex-col items-end gap-2 bg-destructive/10 border border-destructive/20 rounded-lg p-2 max-w-[200px]">
