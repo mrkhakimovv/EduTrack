@@ -75,7 +75,24 @@ export interface PaymentRecord {
   note: string;
   centerId?: string;
   teacherId?: string;
+  teacherName?: string;
+  centerStatus?: 'pending' | 'accepted';
+  acceptedAt?: string;
   editDates?: string[];
+}
+
+export function isPaymentPending(p: PaymentRecord): boolean {
+  if (p.centerStatus === 'pending') return true;
+  if (p.centerStatus === 'accepted') return false;
+  // Legacy payments: if created by a teacher attached to a center (teacherId !== centerId), treat as pending until accepted
+  if (p.centerId && p.teacherId && p.teacherId !== p.centerId) {
+    return true;
+  }
+  return false;
+}
+
+export function hasStudentPendingPayment(studentId: string, monthKey: string, payments: PaymentRecord[]): boolean {
+  return payments.some(p => p.studentId === studentId && p.month === monthKey && isPaymentPending(p));
 }
 
 export interface AppData {

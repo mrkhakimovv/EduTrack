@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { AppData, PaymentRecord, formatSum, isStudentDebtor, formatDateTime, formatMonthKey, getGroupFinancialStats } from '../lib/store';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { AppData, PaymentRecord, formatSum, isStudentDebtor, formatDateTime, formatMonthKey, getGroupFinancialStats, isPaymentPending } from '../lib/store';
+import { Pencil, Trash2, Check, X, Clock, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface StatsTabProps {
@@ -194,13 +194,46 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
               const name = student ? student.fullName : "O'chirib yuborilgan o'quvchi";
               const isEditing = editingId === p.id;
               const isDeleting = deletingId === p.id;
+              const isPending = isPaymentPending(p);
 
               return (
-                <div key={p.id} className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4 transition-colors hover:bg-white/[0.07]">
+                <div
+                  key={p.id}
+                  className={cn(
+                    "border rounded-xl p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4 transition-colors",
+                    isPending
+                      ? "bg-amber-500/10 border-amber-500/35 hover:bg-amber-500/15"
+                      : "bg-emerald-500/[0.06] border-emerald-500/20 hover:bg-emerald-500/10"
+                  )}
+                >
                   <div className="flex flex-col">
-                    <span className="font-medium text-white/90">{name}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={cn("font-semibold", isPending ? "text-amber-300" : "text-emerald-300")}>
+                        {name}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[10px] px-2 py-0.5 rounded-full font-bold border inline-flex items-center gap-1",
+                          isPending
+                            ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                            : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                        )}
+                      >
+                        {isPending ? (
+                          <>
+                            <Clock className="w-2.5 h-2.5" />
+                            <span>Kutilmoqda (Sariq)</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            <span>Qabul qilingan (Yashil)</span>
+                          </>
+                        )}
+                      </span>
+                    </div>
                     <div className="flex flex-col gap-1 mt-1.5 text-xs text-white/40">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className={cn(p.editDates?.length ? "line-through opacity-50" : "")}>
                           {p.date ? formatDateTime(p.date) : ""}
                         </span>
@@ -208,6 +241,12 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
                           <>
                             <span className="w-1 h-1 rounded-full bg-white/20" />
                             <span className="px-1.5 py-0.5 rounded uppercase text-[9px] font-bold tracking-wider border border-white/10 bg-white/5">{p.note}</span>
+                          </>
+                        )}
+                        {p.teacherName && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            <span className="text-purple-300 font-medium">🎓 {p.teacherName}</span>
                           </>
                         )}
                       </div>
@@ -258,7 +297,7 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
                       </div>
                     ) : (
                       <div className="flex flex-col items-end">
-                        <span className="font-bold text-accent">
+                        <span className={cn("font-bold", isPending ? "text-amber-400" : "text-emerald-400")}>
                           {formatSum(p.amount)}
                         </span>
                         {p.month !== monthKey && (

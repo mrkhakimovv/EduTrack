@@ -78,7 +78,14 @@ export function TeachersManagementModal({
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const list: any[] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      const list: any[] = snap.docs.map(d => {
+        const dData = d.data();
+        if (appUser.isUnlimited && !dData.isUnlimited) {
+          updateDoc(doc(db, 'users', d.id), { isUnlimited: true }).catch(() => {});
+          return { ...dData, isUnlimited: true, id: d.id };
+        }
+        return { ...dData, id: d.id };
+      });
       // Sort newest first
       list.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       setTeachers(list);
@@ -89,7 +96,7 @@ export function TeachersManagementModal({
     });
 
     return () => unsub();
-  }, [isOpen, appUser?.uid]);
+  }, [isOpen, appUser?.uid, appUser?.isUnlimited]);
 
   if (!isOpen || !appUser) return null;
 
@@ -146,7 +153,9 @@ export function TeachersManagementModal({
         plainPassword: newPassword,
         role: 'teacher',
         centerId: appUser.uid,
+        centerCode: appUser.centerCode || '',
         centerName: appUser.centerName || 'O\'quv Markazi',
+        isUnlimited: !!appUser.isUnlimited,
         isBlocked: false,
         createdAt: new Date().toISOString()
       };

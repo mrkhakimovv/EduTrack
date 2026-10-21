@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAppData } from './hooks/use-app-data';
 import { useAuth } from './components/FirebaseAuthProvider';
 import { db } from './lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { AlertTriangle, User, Building2, Users } from 'lucide-react';
+import { AlertTriangle, User, Building2, Users, GraduationCap, CheckCircle2, Clock } from 'lucide-react';
 import { Header } from './components/Header';
 import { MonthSelector } from './components/MonthSelector';
 import { ActionTabs, TabId } from './components/ActionTabs';
@@ -11,6 +11,7 @@ import { AttendanceTab } from './components/AttendanceTab';
 import { PaymentTab } from './components/PaymentTab';
 import { DebtorsTab } from './components/DebtorsTab';
 import { BlacklistTab } from './components/BlacklistTab';
+import { TushumTab } from './components/TushumTab';
 import { StatsTab } from './components/StatsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { GroupModal } from './components/GroupModal';
@@ -18,6 +19,8 @@ import { StudentModal } from './components/StudentModal';
 import { AllStudents } from './components/AllStudents';
 import { AllGroups } from './components/AllGroups';
 import { TeachersManagementModal } from './components/TeachersManagementModal';
+import { isPaymentPending, formatSum } from './lib/store';
+import { cn } from './lib/utils';
 
 export default function App() {
   const { appUser } = useAuth();
@@ -30,6 +33,7 @@ export default function App() {
   } = useAppData(appUser);
 
   const [activeTab, setActiveTab] = useState<TabId>('attendance');
+  const [selectedTeacherAccountId, setSelectedTeacherAccountId] = useState<string>('');
   
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -61,7 +65,9 @@ export default function App() {
         where('role', '==', 'teacher')
       );
       const unsub = onSnapshot(q, (snap) => {
-        setTeachersList(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+        const loaded = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        loaded.sort((a: any, b: any) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+        setTeachersList(loaded);
       }, (e) => {
         console.warn("Could not load teachers in App:", e);
       });
@@ -78,6 +84,18 @@ export default function App() {
     }
   }, [appUser?.role, appUser?.uid, appUser?.centerId, appUser?.fullName, appUser?.subject]);
 
+  // Always select a specific teacher account when teachersList is available so teacher accounts never mix
+  useEffect(() => {
+    if (teachersList.length > 0) {
+      const exists = teachersList.some(t => (t.uid || t.id) === selectedTeacherAccountId);
+      if (!selectedTeacherAccountId || !exists) {
+        setSelectedTeacherAccountId(teachersList[0].uid || teachersList[0].id);
+      }
+    } else {
+      setSelectedTeacherAccountId('');
+    }
+  }, [teachersList, selectedTeacherAccountId]);
+
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       const activeEl = document.activeElement as HTMLElement | null;
@@ -89,6 +107,31 @@ export default function App() {
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
+  const monthEndDateTs = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59).getTime();
+  const monthStartDateTs = new Date(selectedYear, selectedMonth, 1).getTime();
+
+  // Strict helper to determine if a group belongs to a specific teacher object
+  const doesGroupBelongToTeacher = (g: any, teacherObj: any) => {
+    if (!teacherObj) return false;
+    const tId = teacherObj.uid || teacherObj.id;
+    if (g.teacherId) {
+      return g.teacherId === tId || Boolean(teacherObj.teacherId && g.teacherId === teacherObj.teacherId);
+    }
+    if (
+      g.teacherName &&
+      teacherObj.fullName &&
+      g.teacherName.trim().toLowerCase() === teacherObj.fullName.trim().toLowerCase()
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const selectedTeacherObj = useMemo(() => {
+    if (!selectedTeacherAccountId) return teachersList[0] || null;
+    return teachersList.find(t => (t.uid || t.id) === selectedTeacherAccountId) || teachersList[0] || null;
+  }, [teachersList, selectedTeacherAccountId]);
+
   if (!data) {
     return (
       <div className="gradient-bg min-h-screen flex items-center justify-center">
@@ -97,11 +140,8 @@ export default function App() {
     );
   }
 
-  const monthEndDateTs = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59).getTime();
-  const monthStartDateTs = new Date(selectedYear, selectedMonth, 1).getTime();
-
   // Compute historically accurate groups for the selected month
-  const activeGroups = data.groups
+  const allMonthGroups = data.groups
     .filter(g => {
       const createdTs = new Date(g.createdAt).getTime();
       if (createdTs > monthEndDateTs) return false;
@@ -128,7 +168,7 @@ export default function App() {
     });
 
   // Compute historically accurate students for the selected month
-  const activeStudents = data.students
+  const allMonthStudents = data.students
     .filter(s => {
       const createdTs = new Date(s.createdAt).getTime();
       if (createdTs > monthEndDateTs) return false;
@@ -161,10 +201,101 @@ export default function App() {
       return state;
     });
 
+  // Compute per-teacher summary stats for the left sidebar account cards
+  const teacherAccountsSummary = teachersList.map(t => {
+    const tId = t.uid || t.id;
+    const tGroups = allMonthGroups.filter(g => !g.deletedAt && !g.archived && doesGroupBelongToTeacher(g, t));
+    const tGroupIds = new Set(tGroups.map(g => g.id));
+    const tStudents = allMonthStudents.filter(
+      s =>
+        !s.deletedAt &&
+        !s.archived &&
+        ((s.groupIds || []).some(gid => tGroupIds.has(gid)) || s.teacherId === tId)
+    );
+    const tStudentIds = new Set(tStudents.map(s => s.id));
+    const tPayments = data.payments.filter(
+      p =>
+        p.month === monthKey &&
+        (p.teacherId === tId || ((!p.teacherId || p.teacherId === appUser?.uid) && tStudentIds.has(p.studentId)))
+    );
+    const collectedAmount = tPayments.reduce((sum, p) => sum + p.amount, 0);
+    const pendingCount = tPayments.filter(p => isPaymentPending(p)).length;
+
+    return {
+      teacher: t,
+      id: tId,
+      fullName: t.fullName || "O'qituvchi",
+      subject: t.subject || "O'qituvchi",
+      code: t.teacherId || t.login || "",
+      groupsCount: tGroups.length,
+      studentsCount: tStudents.length,
+      collectedAmount,
+      pendingCount
+    };
+  });
+
+  // Strictly isolate groups, students, and payments per teacher account for center_admin
+  const isCenterAdmin = appUser?.role === 'center_admin';
+
+  const activeGroups = isCenterAdmin
+    ? selectedTeacherObj
+      ? allMonthGroups.filter(g => doesGroupBelongToTeacher(g, selectedTeacherObj))
+      : []
+    : allMonthGroups;
+
+  const activeGroupIdsSet = new Set(activeGroups.map(g => g.id));
+
+  const activeStudents = isCenterAdmin
+    ? selectedTeacherObj
+      ? allMonthStudents
+          .filter(s => {
+            const tId = selectedTeacherObj.uid || selectedTeacherObj.id;
+            if ((s.groupIds || []).some(gid => activeGroupIdsSet.has(gid))) return true;
+            if (s.teacherId === tId) return true;
+            if (s.history && s.history.some(h => (h.groupIds || []).some(gid => activeGroupIdsSet.has(gid)))) {
+              return true;
+            }
+            return false;
+          })
+          .map(s => {
+            const filteredGroupIds = (s.groupIds || []).filter(gid => activeGroupIdsSet.has(gid));
+            if (filteredGroupIds.length > 0 && filteredGroupIds.length !== (s.groupIds || []).length) {
+              return {
+                ...s,
+                groupIds: filteredGroupIds
+              };
+            }
+            return s;
+          })
+      : []
+    : allMonthStudents;
+
+  const activeStudentIdsSet = new Set(activeStudents.map(s => s.id));
+
+  const activePayments = isCenterAdmin
+    ? selectedTeacherObj
+      ? data.payments.filter(p => {
+          const tId = selectedTeacherObj.uid || selectedTeacherObj.id;
+          if (p.teacherId === tId) return true;
+          if ((!p.teacherId || p.teacherId === appUser?.uid) && activeStudentIdsSet.has(p.studentId)) {
+            return true;
+          }
+          return false;
+        })
+      : []
+    : data.payments;
+
   const monthArchivedStudentsCount = data.students.filter(s => {
     const createdTs = new Date(s.createdAt).getTime();
     if (createdTs > monthEndDateTs) return false;
     if (s.deletedAt && new Date(s.deletedAt).getTime() < monthStartDateTs) return false;
+    if (isCenterAdmin) {
+      if (!selectedTeacherObj) return false;
+      const tId = selectedTeacherObj.uid || selectedTeacherObj.id;
+      const belongs =
+        (s.groupIds || []).some(gid => activeGroupIdsSet.has(gid)) || s.teacherId === tId;
+      if (!belongs) return false;
+    }
     if (s.archived && s.archivedAt && new Date(s.archivedAt).getTime() < monthEndDateTs) return true;
     return false;
   }).length;
@@ -173,10 +304,36 @@ export default function App() {
     ...data,
     students: activeStudents,
     groups: activeGroups,
-    payments: data.payments,
+    payments: activePayments,
   };
 
-  // Wrappers for modals
+  // Strictly scope full data for "Barcha o'quvchilar" and "Barcha guruhlar" modals to the selected teacher
+  const scopedFullGroups = isCenterAdmin
+    ? selectedTeacherObj
+      ? data.groups.filter(g => doesGroupBelongToTeacher(g, selectedTeacherObj))
+      : []
+    : data.groups;
+  const scopedFullGroupIds = new Set(scopedFullGroups.map(g => g.id));
+  const scopedFullStudents = isCenterAdmin
+    ? selectedTeacherObj
+      ? data.students.filter(s => {
+          const tId = selectedTeacherObj.uid || selectedTeacherObj.id;
+          return (s.groupIds || []).some(gid => scopedFullGroupIds.has(gid)) || s.teacherId === tId;
+        })
+      : []
+    : data.students;
+  const scopedFullData = {
+    ...data,
+    groups: scopedFullGroups,
+    students: scopedFullStudents,
+    payments: activePayments
+  };
+
+  const pendingPaymentsCount = activePayments.filter(
+    p => p.month === monthKey && isPaymentPending(p)
+  ).length;
+
+  // Wrappers for modals and teacher-scoped mutations
   const openCreateGroup = () => { setEditGroupObj(null); setShowGroupModal(true); };
   const openEditGroup = (id: string) => { setEditGroupObj(data.groups.find(g => g.id === id)); setShowGroupModal(true); };
   
@@ -184,15 +341,41 @@ export default function App() {
   const openEditStudent = (id: string) => { setEditStudentObj(data.students.find(s => s.id === id)); setShowStudentModal(true); };
 
   const handleSaveGroup = (groupData: any) => {
-    if (editGroupObj) updateGroup(editGroupObj.id, groupData);
-    else addGroup(groupData);
+    if (editGroupObj) {
+      updateGroup(editGroupObj.id, groupData);
+    } else {
+      const finalGroupData = { ...groupData };
+      if (!finalGroupData.teacherId && selectedTeacherObj) {
+        finalGroupData.teacherId = selectedTeacherObj.uid || selectedTeacherObj.id;
+        finalGroupData.teacherName = selectedTeacherObj.fullName;
+      }
+      addGroup(finalGroupData);
+    }
     setShowGroupModal(false);
+  };
+
+  const handleScopedAddStudent = (studentData: any) => {
+    const finalStudentData = { ...studentData };
+    if (!finalStudentData.teacherId && selectedTeacherObj) {
+      finalStudentData.teacherId = selectedTeacherObj.uid || selectedTeacherObj.id;
+      finalStudentData.teacherName = selectedTeacherObj.fullName;
+    }
+    return addStudent(finalStudentData);
   };
 
   const handleSaveStudent = (studentData: any) => {
     if (editStudentObj) updateStudent(editStudentObj.id, studentData);
-    else addStudent(studentData);
+    else handleScopedAddStudent(studentData);
     setShowStudentModal(false);
+  };
+
+  const handleScopedAddPayment = (paymentData: any) => {
+    const finalPayment = { ...paymentData };
+    if (!finalPayment.teacherId && selectedTeacherObj) {
+      finalPayment.teacherId = selectedTeacherObj.uid || selectedTeacherObj.id;
+      finalPayment.teacherName = selectedTeacherObj.fullName;
+    }
+    return addPayment(finalPayment);
   };
 
   const toggleArchiveGroup = (id: string) => {
@@ -210,6 +393,8 @@ export default function App() {
       updateStudent(id, { archived: isArchiving, archivedAt: isArchiving ? new Date().toISOString() : null as any });
     }
   };
+
+  const activeTeacherIdKey = selectedTeacherObj ? (selectedTeacherObj.uid || selectedTeacherObj.id) : 'none';
 
   return (
     <div className="gradient-bg min-h-screen flex flex-col h-screen overflow-hidden">
@@ -233,9 +418,9 @@ export default function App() {
             </div>
           </div>
         )}
-        <div className="flex flex-col md:flex-row gap-6 h-full">
-          <div className="w-full md:w-72 flex flex-col gap-6 shrink-0">
-            <div className="glass-card rounded-2xl p-4 flex flex-col gap-3 border border-white/10">
+        <div className="flex flex-col md:flex-row gap-6 h-full min-h-0">
+          <div className="w-full md:w-72 flex flex-col gap-4 shrink-0 h-full min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar">
+            <div className="glass-card rounded-2xl p-4 flex flex-col gap-3 border border-white/10 shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                   appUser?.role === 'center_admin' 
@@ -276,7 +461,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowTeachersModal(true)}
-                  className="w-full mt-0.5 py-2 px-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 border border-purple-400/30 text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
+                  className="w-full mt-0.5 py-2 px-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 border border-purple-400/30 text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
                 >
                   <Users className="w-3.5 h-3.5 text-purple-400" />
                   <span>O'qituvchilarni boshqarish ({teachersList.length})</span>
@@ -284,16 +469,138 @@ export default function App() {
               )}
             </div>
             
-            <MonthSelector 
-              year={selectedYear}
-              month={selectedMonth}
-              onYearChange={setSelectedYear}
-              onMonthChange={setSelectedMonth}
-            />
+            <div className="shrink-0">
+              <MonthSelector 
+                year={selectedYear}
+                month={selectedMonth}
+                onYearChange={setSelectedYear}
+                onMonthChange={setSelectedMonth}
+              />
+            </div>
+
+            {/* Attached Teachers Account Selector Card (Below MonthSelector) */}
+            {appUser?.role === 'center_admin' && (
+              <div className="glass-card rounded-2xl p-3.5 flex flex-col gap-2.5 border border-white/10 flex-1 min-h-[180px] overflow-hidden mb-8">
+                <div className="flex items-center justify-between px-0.5 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs font-bold text-white/90 uppercase tracking-wider">
+                      O'qituvchilar ({teachersList.length})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
+                  {teacherAccountsSummary.length === 0 ? (
+                    <div className="text-center py-6 px-2 text-xs text-white/40">
+                      Hali o'qituvchilar biriktirilmagan
+                    </div>
+                  ) : (
+                    teacherAccountsSummary.map(item => {
+                      const isSelected = activeTeacherIdKey === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setSelectedTeacherAccountId(item.id)}
+                          className={cn(
+                            "w-full text-left p-2.5 rounded-xl border transition-all flex flex-col gap-1.5 cursor-pointer",
+                            isSelected
+                              ? "bg-purple-600/25 border-purple-400/60 shadow-lg shadow-purple-950/40 ring-1 ring-purple-400/40"
+                              : "bg-white/[0.04] border-white/10 hover:bg-white/[0.09]"
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={cn(
+                                  "w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 border",
+                                  isSelected
+                                    ? "bg-purple-500/35 border-purple-300/60 text-purple-100"
+                                    : "bg-purple-500/15 border-purple-500/25 text-purple-300"
+                                )}
+                              >
+                                {item.fullName.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-white truncate">
+                                  {item.fullName}
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[10px] text-purple-300 font-medium truncate">
+                                    {item.subject}
+                                  </span>
+                                  {item.code && (
+                                    <span className="text-[9px] text-white/40 font-mono">
+                                      {item.code}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              {item.pendingCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[9px] font-bold flex items-center gap-0.5">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {item.pendingCount}
+                                </span>
+                              )}
+                              {isSelected && (
+                                <CheckCircle2 className="w-4 h-4 text-purple-300 shrink-0" />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] pt-1 border-t border-white/10">
+                            <span className="text-white/55">
+                              {item.groupsCount} guruh • {item.studentsCount} o'quvchi
+                            </span>
+                            <span className="font-bold text-emerald-400">
+                              {formatSum(item.collectedAmount)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <ActionTabs activeTab={activeTab} onTabChange={setActiveTab}>
+          <div key={activeTeacherIdKey} className="flex-1 flex flex-col overflow-hidden min-w-0">
+            {/* Active Teacher Account Header Banner */}
+            {appUser?.role === 'center_admin' && selectedTeacherObj && (
+              <div className="mb-3 px-4 py-2.5 rounded-2xl bg-purple-600/20 border border-purple-400/40 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/30 border border-purple-300/40 flex items-center justify-center text-purple-200 font-bold text-xs shrink-0">
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs sm:text-sm text-white truncate">
+                    <span className="font-bold text-purple-200">{selectedTeacherObj.fullName}</span>
+                    {selectedTeacherObj.subject && (
+                      <span className="text-purple-300/80"> ({selectedTeacherObj.subject})</span>
+                    )}
+                    <span className="text-white/60 hidden sm:inline">
+                      {" "}— ushbu o'qituvchi akkauntining alohida guruhlari, to'lovlari va hisob-kitoblari
+                    </span>
+                  </div>
+                </div>
+                {selectedTeacherObj.teacherId && (
+                  <span className="px-2.5 py-0.5 rounded-lg bg-white/10 text-purple-200 font-mono text-xs font-semibold">
+                    {selectedTeacherObj.teacherId}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <ActionTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              isCenterAdmin={appUser?.role === 'center_admin'}
+              pendingPaymentsCount={pendingPaymentsCount}
+            >
               {activeTab === 'attendance' && (
                 <AttendanceTab 
                   data={activeData} 
@@ -303,9 +610,9 @@ export default function App() {
                   setAttendance={setAttendance} 
                   toggleArchiveStudent={toggleArchiveStudent}
                   updateStudent={updateStudent}
-                  addPayment={addPayment}
-                  addStudent={addStudent}
-                  teachers={teachersList}
+                  addPayment={handleScopedAddPayment}
+                  addStudent={handleScopedAddStudent}
+                  teachers={selectedTeacherObj ? [selectedTeacherObj] : teachersList}
                   onEditGroup={openEditGroup}
                 />
               )}
@@ -313,7 +620,7 @@ export default function App() {
                 <PaymentTab 
                   data={activeData} 
                   monthKey={monthKey} 
-                  addPayment={addPayment} 
+                  addPayment={handleScopedAddPayment} 
                   onClose={() => setActiveTab('attendance')}
                 />
               )}
@@ -321,14 +628,23 @@ export default function App() {
                 <DebtorsTab 
                   data={activeData} 
                   monthKey={monthKey} 
-                  addPayment={addPayment} 
+                  addPayment={handleScopedAddPayment} 
                 />
               )}
-              {activeTab === 'blacklist' && (
+              {activeTab === 'blacklist' && appUser?.role !== 'center_admin' && (
                 <BlacklistTab 
                   data={activeData} 
                   monthKey={monthKey} 
-                  addPayment={addPayment} 
+                  addPayment={handleScopedAddPayment} 
+                />
+              )}
+              {(activeTab === 'tushum' || (activeTab === 'blacklist' && appUser?.role === 'center_admin')) && (
+                <TushumTab
+                  data={activeData}
+                  monthKey={monthKey}
+                  teachers={selectedTeacherObj ? [selectedTeacherObj] : teachersList}
+                  centerId={appUser?.uid}
+                  updatePayment={updatePayment}
                 />
               )}
               {activeTab === 'stats' && (
@@ -353,6 +669,7 @@ export default function App() {
         <GroupModal
           initialData={editGroupObj}
           teachers={teachersList}
+          defaultTeacherId={activeTeacherIdKey}
           onClose={() => setShowGroupModal(false)}
           onSave={handleSaveGroup}
         />
@@ -361,7 +678,7 @@ export default function App() {
       {showStudentModal && (
         <StudentModal
           initialData={editStudentObj}
-          groups={data.groups.filter(g => !g.deletedAt && !g.archived)}
+          groups={scopedFullGroups.filter(g => !g.deletedAt && !g.archived)}
           onClose={() => setShowStudentModal(false)}
           onSave={handleSaveStudent}
         />
@@ -369,7 +686,7 @@ export default function App() {
 
       {showAllStudents && (
         <AllStudents
-          data={data}
+          data={scopedFullData}
           onClose={() => setShowAllStudents(false)}
           onEdit={(id) => { setShowAllStudents(false); openEditStudent(id); }}
           onDelete={deleteStudent}
@@ -379,8 +696,8 @@ export default function App() {
 
       {showAllGroups && (
         <AllGroups
-          data={data}
-          teachers={teachersList}
+          data={scopedFullData}
+          teachers={selectedTeacherObj ? [selectedTeacherObj] : teachersList}
           onClose={() => setShowAllGroups(false)}
           onEdit={(id) => { setShowAllGroups(false); openEditGroup(id); }}
           onDelete={deleteGroup}

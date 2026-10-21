@@ -6,11 +6,12 @@ import { X, User } from 'lucide-react';
 interface GroupModalProps {
   initialData?: Group | null;
   teachers?: any[];
+  defaultTeacherId?: string;
   onClose: () => void;
   onSave: (group: Omit<Group, "id">) => void;
 }
 
-export function GroupModal({ initialData, teachers = [], onClose, onSave }: GroupModalProps) {
+export function GroupModal({ initialData, teachers = [], defaultTeacherId, onClose, onSave }: GroupModalProps) {
   const [name, setName] = useState("");
   const [time, setTime] = useState("");
   const [days, setDays] = useState<number[]>([]);
@@ -26,21 +27,33 @@ export function GroupModal({ initialData, teachers = [], onClose, onSave }: Grou
       setDays(initialData.days);
       setMonthlyPayment(initialData.monthlyPayment?.toString() || "");
       
-      const existingTId = initialData.teacherId || (teachers.length === 1 ? (teachers[0].uid || teachers[0].id) : "");
+      const existingTId =
+        initialData.teacherId ||
+        (defaultTeacherId && defaultTeacherId !== 'all' ? defaultTeacherId : "") ||
+        (teachers.length > 0 ? (teachers[0].uid || teachers[0].id) : "");
       setTeacherId(existingTId);
-      const existingTName = initialData.teacherName || (teachers.length === 1 ? teachers[0].fullName : "");
+      const matched = teachers.find(t => (t.uid || t.id) === existingTId);
+      const existingTName = initialData.teacherName || matched?.fullName || "";
       setTeacherName(existingTName);
 
       if (initialData.createdAt) {
         setCreatedAt(initialData.createdAt.split('T')[0]);
       }
     } else {
-      if (teachers.length === 1) {
+      if (defaultTeacherId && defaultTeacherId !== 'all') {
+        const matched = teachers.find(t => (t.uid || t.id) === defaultTeacherId);
+        if (matched) {
+          setTeacherId(matched.uid || matched.id);
+          setTeacherName(matched.fullName);
+          return;
+        }
+      }
+      if (teachers.length > 0) {
         setTeacherId(teachers[0].uid || teachers[0].id);
         setTeacherName(teachers[0].fullName);
       }
     }
-  }, [initialData, teachers]);
+  }, [initialData, teachers, defaultTeacherId]);
 
   const toggleDay = (d: number) => {
     setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
@@ -64,9 +77,16 @@ export function GroupModal({ initialData, teachers = [], onClose, onSave }: Grou
       createdIso = new Date(createdAt + 'T12:00:00Z').toISOString();
     }
 
+    let finalTeacherId = teacherId;
+    if (!finalTeacherId && teachers.length > 0) {
+      finalTeacherId = (defaultTeacherId && defaultTeacherId !== 'all')
+        ? defaultTeacherId
+        : (teachers[0].uid || teachers[0].id);
+    }
+
     let finalTeacherName = teacherName;
-    if (teacherId && !finalTeacherName) {
-      const selected = teachers.find(t => t.uid === teacherId || t.id === teacherId);
+    if (finalTeacherId && !finalTeacherName) {
+      const selected = teachers.find(t => t.uid === finalTeacherId || t.id === finalTeacherId);
       if (selected) finalTeacherName = selected.fullName;
     }
     
@@ -75,7 +95,7 @@ export function GroupModal({ initialData, teachers = [], onClose, onSave }: Grou
       time, 
       days,
       monthlyPayment: monthlyPayment ? parseInt(monthlyPayment.replace(/\D/g, ''), 10) : undefined,
-      teacherId: teacherId || undefined,
+      teacherId: finalTeacherId || undefined,
       teacherName: finalTeacherName || undefined,
       createdAt: createdIso
     });
@@ -109,7 +129,7 @@ export function GroupModal({ initialData, teachers = [], onClose, onSave }: Grou
 
           {teachers.length > 0 && (
             <div>
-              <label className="block text-sm text-white/70 mb-1 ml-1">Mas'ul o'qituvchi</label>
+              <label className="block text-sm text-white/70 mb-1 ml-1">Mas'ul o'qituvchi *</label>
               <div className="relative">
                 <User className="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <select
@@ -117,7 +137,6 @@ export function GroupModal({ initialData, teachers = [], onClose, onSave }: Grou
                   onChange={e => handleTeacherChange(e.target.value)}
                   className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-primary/50 text-sm [color-scheme:dark]"
                 >
-                  <option value="">Biriktirilmagan (barcha o'qituvchilar)</option>
                   {teachers.map(t => (
                     <option key={t.uid || t.id} value={t.uid || t.id}>
                       {t.fullName} ({t.subject || "O'qituvchi"})

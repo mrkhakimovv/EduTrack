@@ -1,7 +1,7 @@
 import { useMemo, useState, FormEvent } from 'react';
-import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student, getGroupFinancialStats, formatSum, getExpectedPayment, formatMonthKey, PaymentRecord } from '../lib/store';
+import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student, getGroupFinancialStats, formatSum, getExpectedPayment, formatMonthKey, PaymentRecord, hasStudentPendingPayment } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, CheckCircle2, X, UserPlus, Sparkles, GraduationCap } from 'lucide-react';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, CheckCircle2, X, UserPlus, Sparkles, GraduationCap, Clock } from 'lucide-react';
 
 export interface ParsedTemplateStudent {
   fullName: string;
@@ -264,10 +264,10 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
   };
 
   if (activeGroups.length === 0) {
-    return <div className="text-center text-white/50 py-8">Hali guruhlar yo'q</div>;
+    return <div className="text-center text-white/50 py-8">Ushbu o'qituvchi uchun hali guruhlar yo'q</div>;
   }
 
-  if (!selectedGroupId) {
+  if (!selectedGroupId || !group) {
     return (
       <div className="flex flex-col gap-5 h-full p-4 sm:p-6 overflow-y-auto custom-scrollbar glass-card md:bg-transparent md:border-none md:backdrop-filter-none rounded-3xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -547,6 +547,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
               {studentsInGroup.map(student => {
                 const debt = getDebtAmount(student, monthKey, data.payments);
                 const isDebtor = debt > 0;
+                const hasPending = hasStudentPendingPayment(student.id, monthKey, data.payments);
                 
                 return (
                   <tr key={student.id} className="hover:bg-white/5 transition-colors group/row">
@@ -559,13 +560,36 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                         <div className="flex items-center gap-1.5">
                           <span className={cn(
                             "text-sm font-semibold transition-colors group-hover/student:text-primary",
-                            isDebtor ? "debt-glow text-white" : "text-white/90"
+                            hasPending
+                              ? "text-amber-300"
+                              : isDebtor
+                              ? "debt-glow text-white"
+                              : "text-emerald-400"
                           )}>
                             {student.fullName}
                           </span>
-                          <CreditCard className="h-3.5 w-3.5 text-white/30 group-hover/student:text-primary transition-colors shrink-0" />
+                          <CreditCard className={cn(
+                            "h-3.5 w-3.5 transition-colors shrink-0",
+                            hasPending
+                              ? "text-amber-400"
+                              : !isDebtor
+                              ? "text-emerald-400/70"
+                              : "text-white/30 group-hover/student:text-primary"
+                          )} />
                         </div>
-                        {isDebtor ? (
+                        {hasPending ? (
+                          <span className="text-[10px] text-amber-400 font-semibold tracking-tight mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/35">
+                              <Clock className="w-2.5 h-2.5" />
+                              Kutilmoqda (Tasdiqlanmagan)
+                            </span>
+                            {isDebtor && (
+                              <span className="text-rose-400">
+                                ({new Intl.NumberFormat("uz-UZ").format(debt)} so'm qoldiq)
+                              </span>
+                            )}
+                          </span>
+                        ) : isDebtor ? (
                           <span className="text-[10px] text-destructive font-medium tracking-tight mt-0.5 flex items-center gap-1.5">
                             <span>{new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz</span>
                             <span className="text-[9px] px-1.5 py-0.2 rounded bg-destructive/15 text-rose-300 font-semibold group-hover/student:bg-destructive/30 transition-colors">
@@ -573,9 +597,12 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                             </span>
                           </span>
                         ) : (
-                          <span className="text-[10px] text-accent font-medium tracking-tight mt-0.5 flex items-center gap-1.5">
-                            <span>To'langan</span>
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-accent/15 text-accent font-semibold opacity-0 group-hover/student:opacity-100 transition-opacity">
+                          <span className="text-[10px] text-emerald-400 font-semibold tracking-tight mt-0.5 flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              To'langan
+                            </span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 font-semibold opacity-0 group-hover/student:opacity-100 transition-opacity">
                               + To'lov
                             </span>
                           </span>
@@ -694,14 +721,18 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                     </div>
                   )}
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <span className="text-xs text-white/50">Qarzdorlik holati:</span>
-                    {getDebtAmount(payingStudent, monthKey, data.payments) > 0 ? (
+                    <span className="text-xs text-white/50">To'lov holati:</span>
+                    {hasStudentPendingPayment(payingStudent.id, monthKey, data.payments) ? (
+                      <span className="text-xs font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/35">
+                        Kutilmoqda (Markaz tasdiqlamagan)
+                      </span>
+                    ) : getDebtAmount(payingStudent, monthKey, data.payments) > 0 ? (
                       <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
                         {formatSum(getDebtAmount(payingStudent, monthKey, data.payments))} qarz
                       </span>
                     ) : (
                       <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                        To'liq to'langan
+                        To'liq to'langan (Tasdiqlangan)
                       </span>
                     )}
                   </div>

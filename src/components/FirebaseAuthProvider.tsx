@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, query, collection, where, getDocs } from 'firebase/firestore';
 import { Loader2, Lock, User as UserIcon, Building2, Phone, CheckCircle2, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { AdminPanel } from './AdminPanel';
 
@@ -74,7 +74,7 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
         const docRef = doc(db, 'users', u.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          const userData = docSnap.data() as AppUser;
+          const userData = { ...(docSnap.data() as AppUser) };
           if (userData.isBlocked) {
             await auth.signOut();
             setUser(null);
@@ -83,6 +83,23 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
             setLoading(false);
             return;
           }
+
+          // If teacher belongs to a learning center, inherit unlimited license status from the center
+          if (userData.role === 'teacher' && userData.centerId && userData.centerId !== u.uid) {
+            try {
+              const centerSnap = await getDoc(doc(db, 'users', userData.centerId));
+              if (centerSnap.exists()) {
+                const centerData = centerSnap.data();
+                if (centerData.isUnlimited && !userData.isUnlimited) {
+                  userData.isUnlimited = true;
+                  updateDoc(docRef, { isUnlimited: true }).catch(() => {});
+                }
+              }
+            } catch (e) {
+              console.warn("Could not check parent center license:", e);
+            }
+          }
+
           setAppUser(userData);
         } else {
           // If no doc exists (fallback)
@@ -283,22 +300,6 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
                 {loggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : "Kirish"}
               </button>
             </form>
-
-            <div className="w-full pt-4 border-t border-white/10 flex flex-col items-center gap-3">
-              <span className="text-xs text-white/40 text-center">Yangi o'quv markazi ochmoqchimisiz?</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginError("");
-                  setRegisterError("");
-                  setMode('register_center');
-                }}
-                className="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 font-medium py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
-              >
-                <Building2 className="w-4 h-4 text-blue-400" />
-                <span>O'quv markaz akkauntini yaratish</span>
-              </button>
-            </div>
           </div>
         ) : (
           <div className="glass-card max-w-md w-full p-6 sm:p-8 rounded-2xl flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">

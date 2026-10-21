@@ -52,35 +52,87 @@ export function useAppData(appUser?: AppUser | null) {
       const paymentsRef = query(collection(db, 'payments'), where('userId', '==', targetCenterId));
       const attendanceRef = query(collection(db, 'attendance'), where('userId', '==', targetCenterId));
 
-      let currentData: AppData = {
-        groups: [],
-        students: [],
-        payments: [],
-        attendance: {}
-      };
+      let rawGroups: Group[] = [];
+      let rawStudents: Student[] = [];
+      let rawPayments: PaymentRecord[] = [];
+      let rawAttendance: { [k: string]: AttendanceRecord } = {};
 
       let groupsReady = false, studentsReady = false, paymentsReady = false, attendanceReady = false;
       
       const updateLocal = () => {
         if (groupsReady && studentsReady && paymentsReady && attendanceReady) {
-          setData({ ...currentData });
+          const currentAppUser = appUserRef.current;
+          const isCenterTeacher =
+            currentAppUser?.role === 'teacher' &&
+            Boolean(currentAppUser?.centerId) &&
+            currentAppUser?.centerId !== user.uid;
+
+          if (isCenterTeacher) {
+            const teacherUid = user.uid;
+            const teacherCode = currentAppUser?.teacherId;
+
+            const filteredGroups = rawGroups.filter(
+              g =>
+                g.teacherId === teacherUid ||
+                (teacherCode && g.teacherId === teacherCode)
+            );
+            const teacherGroupIds = new Set(filteredGroups.map(g => g.id));
+
+            const filteredStudents = rawStudents
+              .filter(
+                s =>
+                  s.teacherId === teacherUid ||
+                  (s.groupIds || []).some(gid => teacherGroupIds.has(gid)) ||
+                  (s.history &&
+                    s.history.some(h => (h.groupIds || []).some(gid => teacherGroupIds.has(gid))))
+              )
+              .map(s => {
+                const scopedGroupIds = (s.groupIds || []).filter(gid => teacherGroupIds.has(gid));
+                if (scopedGroupIds.length > 0 && scopedGroupIds.length !== (s.groupIds || []).length) {
+                  return { ...s, groupIds: scopedGroupIds };
+                }
+                return s;
+              });
+
+            const teacherStudentIds = new Set(filteredStudents.map(s => s.id));
+
+            const filteredPayments = rawPayments.filter(
+              p =>
+                p.teacherId === teacherUid ||
+                ((!p.teacherId || p.teacherId === targetCenterId) && teacherStudentIds.has(p.studentId))
+            );
+
+            setData({
+              groups: filteredGroups,
+              students: filteredStudents,
+              payments: filteredPayments,
+              attendance: rawAttendance
+            });
+          } else {
+            setData({
+              groups: rawGroups,
+              students: rawStudents,
+              payments: rawPayments,
+              attendance: rawAttendance
+            });
+          }
         }
       };
 
       unsubGroups = onSnapshot(groupsRef, (snap) => {
-        currentData.groups = snap.docs.map(d => ({ ...(d.data() as Group), id: d.id }));
+        rawGroups = snap.docs.map(d => ({ ...(d.data() as Group), id: d.id }));
         groupsReady = true;
         updateLocal();
       }, (e) => handleFirestoreError(e, OperationType.LIST, 'groups'));
 
       unsubStudents = onSnapshot(studentsRef, (snap) => {
-        currentData.students = snap.docs.map(d => ({ ...(d.data() as Student), id: d.id }));
+        rawStudents = snap.docs.map(d => ({ ...(d.data() as Student), id: d.id }));
         studentsReady = true;
         updateLocal();
       }, (e) => handleFirestoreError(e, OperationType.LIST, 'students'));
 
       unsubPayments = onSnapshot(paymentsRef, (snap) => {
-        currentData.payments = snap.docs.map(d => ({ ...(d.data() as PaymentRecord), id: d.id }));
+        rawPayments = snap.docs.map(d => ({ ...(d.data() as PaymentRecord), id: d.id }));
         paymentsReady = true;
         updateLocal();
       }, (e) => handleFirestoreError(e, OperationType.LIST, 'payments'));
@@ -91,7 +143,7 @@ export function useAppData(appUser?: AppUser | null) {
           const docData = d.data();
           att[docData.groupId_month] = docData.records;
         });
-        currentData.attendance = att;
+        rawAttendance = att;
         attendanceReady = true;
         updateLocal();
       }, (e) => handleFirestoreError(e, OperationType.LIST, 'attendance'));
@@ -104,7 +156,7 @@ export function useAppData(appUser?: AppUser | null) {
       unsubPayments();
       unsubAttendance();
     };
-  }, [appUser?.centerId, getTargetCenterId]);
+  }, [appUser?.centerId, appUser?.role, appUser?.teacherId, getTargetCenterId]);
 
   const addGroup = useCallback(async (group: Omit<Group, "id">) => {
     if (!auth.currentUser) return;
@@ -175,17 +227,29 @@ export function useAppData(appUser?: AppUser | null) {
     if (!auth.currentUser) return;
     const centerId = await getTargetCenterId(auth.currentUser.uid);
     const newId = generateId();
+
+    let resolvedTeacherId = student.teacherId || (appUserRef.current?.role === 'teacher' ? auth.currentUser.uid : undefined);
+    let resolvedTeacherName = student.teacherName || (appUserRef.current?.role === 'teacher' ? appUserRef.current.fullName : undefined);
+
+    if (!resolvedTeacherId && data && student.groupIds?.length) {
+      const grp = data.groups.find(g => student.groupIds.includes(g.id) && g.teacherId);
+      if (grp) {
+        resolvedTeacherId = grp.teacherId;
+        resolvedTeacherName = grp.teacherName || resolvedTeacherName;
+      }
+    }
+
     try {
       await setDoc(doc(db, 'students', newId), JSON.parse(JSON.stringify({ 
         ...student, 
         userId: centerId,
         centerId: centerId,
-        teacherId: student.teacherId || (appUserRef.current?.role === 'teacher' ? auth.currentUser.uid : undefined),
-        teacherName: student.teacherName || (appUserRef.current?.role === 'teacher' ? appUserRef.current.fullName : undefined),
+        teacherId: resolvedTeacherId,
+        teacherName: resolvedTeacherName,
         createdAt: new Date().toISOString() 
       })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `students/${newId}`); }
-  }, [getTargetCenterId]);
+  }, [getTargetCenterId, data]);
 
   const updateStudent = useCallback(async (id: string, updates: Partial<Omit<Student, "id" | "createdAt">>) => {
     if (!data || !auth.currentUser) return;
@@ -269,16 +333,49 @@ export function useAppData(appUser?: AppUser | null) {
     if (!auth.currentUser) return;
     const centerId = await getTargetCenterId(auth.currentUser.uid);
     const newId = generateId();
+    const currentUser = appUserRef.current;
+    const isCenterTeacher = currentUser?.role === 'teacher' && Boolean(currentUser?.centerId);
+
+    // Resolve teacher info from current user (if teacher) or from the student's assigned group/student record
+    let resolvedTeacherId = payment.teacherId || (currentUser?.role === 'teacher' ? currentUser.uid : undefined);
+    let resolvedTeacherName = payment.teacherName || (currentUser?.role === 'teacher' ? currentUser.fullName : undefined);
+
+    if (!resolvedTeacherId && data) {
+      const st = data.students.find(s => s.id === payment.studentId);
+      if (st) {
+        if (st.teacherId && st.teacherId !== centerId) {
+          resolvedTeacherId = st.teacherId;
+          resolvedTeacherName = st.teacherName;
+        }
+        if ((!resolvedTeacherId || !resolvedTeacherName) && st.groupIds?.length) {
+          const grp = data.groups.find(g => st.groupIds.includes(g.id) && g.teacherId);
+          if (grp) {
+            resolvedTeacherId = grp.teacherId;
+            resolvedTeacherName = grp.teacherName || resolvedTeacherName;
+          }
+        }
+      }
+    }
+
+    const centerStatus: 'pending' | 'accepted' = payment.centerStatus
+      ? payment.centerStatus
+      : (isCenterTeacher ? 'pending' : 'accepted');
+
+    const nowIso = new Date().toISOString();
+
     try {
       await setDoc(doc(db, 'payments', newId), JSON.parse(JSON.stringify({ 
         ...payment, 
         userId: centerId,
         centerId: centerId,
-        teacherId: appUserRef.current?.uid,
-        date: new Date().toISOString() 
+        teacherId: resolvedTeacherId || currentUser?.uid,
+        teacherName: resolvedTeacherName || (currentUser?.role === 'teacher' ? currentUser.fullName : undefined),
+        centerStatus,
+        ...(centerStatus === 'accepted' ? { acceptedAt: nowIso } : {}),
+        date: nowIso 
       })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `payments/${newId}`); }
-  }, [getTargetCenterId]);
+  }, [getTargetCenterId, data]);
 
   const updatePayment = useCallback(async (id: string, updates: Partial<Omit<PaymentRecord, "id" | "date">>) => {
     if (!auth.currentUser) return;

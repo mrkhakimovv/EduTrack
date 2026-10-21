@@ -68,6 +68,13 @@ export function AdminPanel() {
       const snap = await getDocs(collection(db, 'users'));
       const fetched: any[] = snap.docs.map(d => ({ ...(d.data() as any), uid: d.id }));
 
+      const centerUnlimitedMap = new Map<string, boolean>();
+      for (const u of fetched) {
+        if (u.role === 'center_admin') {
+          centerUnlimitedMap.set(u.uid, !!u.isUnlimited);
+        }
+      }
+
       const updatedUsers: any[] = [];
       for (const u of fetched) {
         if (u.role === 'admin') continue;
@@ -84,6 +91,12 @@ export function AdminPanel() {
             }
             await updateDoc(doc(db, 'users', u.uid), { teacherId: newId });
             u.teacherId = newId;
+          }
+
+          // If the teacher's learning center has unlimited license, ensure the teacher also has unlimited license
+          if (u.centerId && centerUnlimitedMap.get(u.centerId) === true && !u.isUnlimited) {
+            await updateDoc(doc(db, 'users', u.uid), { isUnlimited: true });
+            u.isUnlimited = true;
           }
         }
         updatedUsers.push(u);
@@ -277,6 +290,7 @@ export function AdminPanel() {
         newTeacherDoc.centerId = assignedCenter.uid;
         newTeacherDoc.centerName = assignedCenter.centerName;
         newTeacherDoc.centerCode = assignedCenter.centerCode;
+        newTeacherDoc.isUnlimited = !!assignedCenter.isUnlimited;
       }
 
       await setDoc(doc(db, 'users', newAuthUser.uid), newTeacherDoc);
@@ -304,7 +318,21 @@ export function AdminPanel() {
       const newState = !targetUser.isUnlimited;
       await updateDoc(doc(db, 'users', targetUser.uid), { isUnlimited: newState });
       
-      setAllUsers(prev => prev.map(u => u.uid === targetUser.uid ? { ...u, isUnlimited: newState } : u));
+      if (targetUser.role === 'center_admin') {
+        const attachedTeachers = allUsers.filter(u => u.centerId === targetUser.uid);
+        await Promise.all(
+          attachedTeachers.map(t => updateDoc(doc(db, 'users', t.uid), { isUnlimited: newState }))
+        );
+        setAllUsers(prev => prev.map(u => 
+          (u.uid === targetUser.uid || u.centerId === targetUser.uid) ? { ...u, isUnlimited: newState } : u
+        ));
+        if (selectedUser && selectedUser.centerId === targetUser.uid) {
+          setSelectedUser({ ...selectedUser, isUnlimited: newState });
+        }
+      } else {
+        setAllUsers(prev => prev.map(u => u.uid === targetUser.uid ? { ...u, isUnlimited: newState } : u));
+      }
+
       if (selectedUser?.uid === targetUser.uid) {
         setSelectedUser({ ...selectedUser, isUnlimited: newState });
       }
@@ -761,7 +789,7 @@ export function AdminPanel() {
                           {u.plainPassword || '••••'}
                         </td>
                         <td className="py-4 px-4 text-center">
-                          {u.isUnlimited ? (
+                          {(u.isUnlimited || centers.find(c => c.uid === u.centerId)?.isUnlimited) ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium">
                               Cheksiz
                             </span>
@@ -1196,31 +1224,39 @@ export function AdminPanel() {
                     </div>
                   ) : (
                     <div className="divide-y divide-white/5 text-xs max-h-60 overflow-y-auto">
-                      {centerTeachers.map(t => (
-                        <div key={t.uid} className="p-3 flex items-center justify-between hover:bg-white/5 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono font-bold text-primary px-2 py-0.5 rounded bg-primary/10">
-                              {t.teacherId}
-                            </span>
-                            <div>
-                              <div className="font-semibold text-white">{t.fullName}</div>
-                              <div className="text-[11px] text-white/40 font-mono">@{t.username} {t.subject && `• ${t.subject}`}</div>
+                      {centerTeachers.map(t => {
+                        const isTeacherUnlimited = !!(t.isUnlimited || selectedCenter.isUnlimited);
+                        return (
+                          <div key={t.uid} className="p-3 flex items-center justify-between hover:bg-white/5 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono font-bold text-primary px-2 py-0.5 rounded bg-primary/10">
+                                {t.teacherId}
+                              </span>
+                              <div>
+                                <div className="font-semibold text-white">{t.fullName}</div>
+                                <div className="text-[11px] text-white/40 font-mono">@{t.username} {t.subject && `• ${t.subject}`}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                              {isTeacherUnlimited && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold">
+                                  <CheckCircle2 className="w-3 h-3" /> Cheksiz
+                                </span>
+                              )}
+                              <span className="text-[11px] text-white/50 font-mono">{t.plainPassword}</span>
+                              <button
+                                onClick={() => {
+                                  setSelectedUser({ ...t, isUnlimited: isTeacherUnlimited });
+                                }}
+                                className="p-1 text-primary hover:text-primary/80"
+                                title="To'lov holatini ko'rish"
+                              >
+                                <Wallet className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-white/50 font-mono">{t.plainPassword}</span>
-                            <button
-                              onClick={() => {
-                                setSelectedUser(t);
-                              }}
-                              className="p-1 text-primary hover:text-primary/80"
-                              title="To'lov holatini ko'rish"
-                            >
-                              <Wallet className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1317,37 +1353,51 @@ export function AdminPanel() {
               
               {/* Payment Grid */}
               <div className="pt-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-white/70">To'lov holati:</span>
-                    <button
-                      onClick={() => toggleUnlimitedPayment(selectedUser)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
-                        selectedUser.isUnlimited 
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                          : 'bg-white/5 text-white/50 hover:text-white border border-transparent'
-                      }`}
-                    >
-                      Cheksiz
-                    </button>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1 self-start sm:self-auto border border-white/5">
-                    <button 
-                      onClick={() => setSelectedYear(y => y - 1)}
-                      className="p-1 hover:bg-white/10 rounded text-white/70 text-xs"
-                    >
-                      &lt;
-                    </button>
-                    <span className="text-xs font-semibold w-10 text-center">{selectedYear}</span>
-                    <button 
-                      onClick={() => setSelectedYear(y => y + 1)}
-                      className="p-1 hover:bg-white/10 rounded text-white/70 text-xs"
-                    >
-                      &gt;
-                    </button>
-                  </div>
-                </div>
+                {(() => {
+                  const isCenterUnlimited = !!(selectedUser.centerId && centers.find(c => c.uid === selectedUser.centerId)?.isUnlimited);
+                  const effectiveUnlimited = !!(selectedUser.isUnlimited || isCenterUnlimited);
+                  return (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-white/70">To'lov holati:</span>
+                          <button
+                            onClick={() => toggleUnlimitedPayment(selectedUser)}
+                            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
+                              effectiveUnlimited 
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                                : 'bg-white/5 text-white/50 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Cheksiz</span>
+                          </button>
+                          {isCenterUnlimited && (
+                            <span className="text-[11px] text-emerald-400/80 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                              O'quv markaz orqali cheksiz
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1 self-start sm:self-auto border border-white/5">
+                          <button 
+                            onClick={() => setSelectedYear(y => y - 1)}
+                            className="p-1 hover:bg-white/10 rounded text-white/70 text-xs"
+                          >
+                            &lt;
+                          </button>
+                          <span className="text-xs font-semibold w-10 text-center">{selectedYear}</span>
+                          <button 
+                            onClick={() => setSelectedYear(y => y + 1)}
+                            className="p-1 hover:bg-white/10 rounded text-white/70 text-xs"
+                          >
+                            &gt;
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
                 
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
                   {MONTHS.map((month, index) => {

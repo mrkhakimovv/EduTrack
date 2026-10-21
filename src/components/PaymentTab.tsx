@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { AppData, Student, getDebtAmount, PaymentRecord } from '../lib/store';
-import { Search, CheckCircle2, Archive, ArrowLeft } from 'lucide-react';
+import { AppData, Student, getDebtAmount, PaymentRecord, hasStudentPendingPayment } from '../lib/store';
+import { Search, CheckCircle2, Archive, ArrowLeft, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface PaymentTabProps {
@@ -169,6 +169,7 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
         ) : (
           filteredStudents.map(student => {
             const debt = getDebtAmount(student, monthKey, data.payments);
+            const hasPending = hasStudentPendingPayment(student.id, monthKey, data.payments);
             const isSelected = selectedStudent?.id === student.id;
             
             return (
@@ -176,25 +177,43 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
                 key={student.id}
                 onClick={() => setSelectedStudent(student)}
                 className={cn(
-                  "text-left p-4 rounded-xl border transition-all duration-200 flex items-center justify-between w-full",
+                  "text-left p-4 rounded-xl border transition-all duration-200 flex items-center justify-between w-full cursor-pointer",
                   isSelected 
-                    ? "bg-primary/10 border-primary/30" 
-                    : "bg-white/5 border-white/5 hover:bg-white/10",
-                  debt > 0 && !isSelected && "debt-glow border-destructive/10 bg-destructive/5"
+                    ? "bg-primary/15 border-primary/40" 
+                    : hasPending
+                    ? "bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/15"
+                    : debt > 0
+                    ? "debt-glow border-destructive/15 bg-destructive/5 hover:bg-white/10"
+                    : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/15"
                 )}
               >
                 <div className="flex-1 min-w-0 pr-4">
-                  <div className="font-medium text-white/90 truncate mb-1">
+                  <div className={cn(
+                    "font-semibold truncate mb-1",
+                    hasPending ? "text-amber-300" : debt === 0 ? "text-emerald-300" : "text-white/90"
+                  )}>
                     <span>{student.fullName}</span>
                   </div>
                   <div className="text-sm">
-                    {debt > 0 ? (
+                    {hasPending ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-amber-400 font-semibold flex items-center gap-1.5 text-xs">
+                          <Clock className="h-3.5 w-3.5 shrink-0" />
+                          <span>Kutilmoqda (Markaz qabul qilmagan)</span>
+                        </span>
+                        {debt > 0 && (
+                          <span className="text-rose-400 text-xs font-medium">
+                            Qoldiq qarz: {new Intl.NumberFormat("uz-UZ").format(debt)} so'm
+                          </span>
+                        )}
+                      </div>
+                    ) : debt > 0 ? (
                       <span className="text-destructive font-semibold">
                         {new Intl.NumberFormat("uz-UZ").format(debt)} so'm qarz
                       </span>
                     ) : (
-                      <span className="text-accent flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> To'langan
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> To'langan
                       </span>
                     )}
                   </div>
