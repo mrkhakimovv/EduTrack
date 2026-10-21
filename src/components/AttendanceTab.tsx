@@ -7,12 +7,13 @@ export interface ParsedTemplateStudent {
   fullName: string;
   phone: string;
   monthlyPayment: number;
+  usedGroupDefault?: boolean;
   raw: string;
   isValid: boolean;
   error?: string;
 }
 
-export function parseStudentTemplate(input: string): ParsedTemplateStudent[] {
+export function parseStudentTemplate(input: string, defaultGroupPayment: number = 0): ParsedTemplateStudent[] {
   if (!input || !input.trim()) return [];
 
   const bracketMatches = input.match(/\[(.*?)\]/gs);
@@ -34,34 +35,54 @@ export function parseStudentTemplate(input: string): ParsedTemplateStudent[] {
       return cleaned;
     });
 
-    if (parts.length < 3) {
+    if (parts.length < 2) {
       return {
         fullName: parts[0] || '',
-        phone: parts[1] || '',
+        phone: '',
         monthlyPayment: 0,
         raw: block,
         isValid: false,
-        error: "3 ta ma'lumot kiritilishi kerak: [+(Ism Familiya);+(telefon);+(summa)]"
+        error: "Kamida Ism Familiya va telefon raqam kiritilishi kerak"
       };
     }
 
     const fullName = parts[0].trim();
-    const phone = parts[1].trim();
-    const amountStr = parts[2].replace(/[^\d]/g, '');
-    const monthlyPayment = parseInt(amountStr, 10);
+    const phone = (parts[1] || '').trim();
+    const rawAmountPart = parts[2] !== undefined ? parts[2].trim() : '';
+    const amountStr = rawAmountPart.replace(/[^\d]/g, '');
+    const parsedPayment = amountStr ? parseInt(amountStr, 10) : 0;
 
     if (!fullName) {
       return { fullName: '', phone, monthlyPayment: 0, raw: block, isValid: false, error: "Ism Familiya kiritilmagan" };
     }
 
+    let monthlyPayment = parsedPayment;
+    let usedGroupDefault = false;
+
     if (isNaN(monthlyPayment) || monthlyPayment <= 0) {
-      return { fullName, phone, monthlyPayment: 0, raw: block, isValid: false, error: "To'lov summasi noto'g'ri kiritilgan" };
+      if (defaultGroupPayment > 0) {
+        monthlyPayment = defaultGroupPayment;
+        usedGroupDefault = true;
+      } else if (rawAmountPart === '0' || rawAmountPart === '') {
+        monthlyPayment = 0;
+        usedGroupDefault = true;
+      } else {
+        return {
+          fullName,
+          phone,
+          monthlyPayment: 0,
+          raw: block,
+          isValid: false,
+          error: "To'lov summasi noto'g'ri kiritilgan (guruh uchun ham oylik to'lov belgilanmagan)"
+        };
+      }
     }
 
     return {
       fullName,
       phone,
       monthlyPayment,
+      usedGroupDefault,
       raw: block,
       isValid: true
     };
@@ -94,9 +115,26 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
   const [templateInput, setTemplateInput] = useState<string>("");
   const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
 
+  const group = data.groups.find(g => g.id === selectedGroupId);
+
+  const groupDefaultPayment = useMemo(() => {
+    if (group?.monthlyPayment && group.monthlyPayment > 0) {
+      return group.monthlyPayment;
+    }
+    const groupStudents = data.students.filter(
+      s => !s.deletedAt && !s.archived && s.groupIds?.includes(selectedGroupId)
+    );
+    for (const st of groupStudents) {
+      const grpPrice = st.groupPricing?.[selectedGroupId]?.monthly;
+      if (grpPrice && grpPrice > 0) return grpPrice;
+      if (st.monthlyPayment && st.monthlyPayment > 0) return st.monthlyPayment;
+    }
+    return 0;
+  }, [group, data.students, selectedGroupId]);
+
   const parsedTemplateStudents = useMemo(() => {
-    return parseStudentTemplate(templateInput);
-  }, [templateInput]);
+    return parseStudentTemplate(templateInput, groupDefaultPayment);
+  }, [templateInput, groupDefaultPayment]);
 
   const validTemplateStudents = useMemo(() => {
     return parsedTemplateStudents.filter(s => s.isValid);
@@ -151,7 +189,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
           school: "",
           grade: "",
           groupIds: [selectedGroupId],
-          joinDate: new Date().toISOString().split('T')[0],
+          joinDate: `${monthKey}-01`,
           firstMonthPayment: s.monthlyPayment,
           monthlyPayment: s.monthlyPayment,
           groupPricing: {
@@ -174,8 +212,6 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
     }
   };
 
-  const group = data.groups.find(g => g.id === selectedGroupId);
-  
   const lessonDates = useMemo(() => {
     if (!group) return [];
     return getLessonDates(group, year, month);
@@ -233,6 +269,22 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
     return sum;
   }, [groupsStatsMap]);
 
+  const totalGroupsConfirmed = useMemo(() => {
+    let sum = 0;
+    groupsStatsMap.forEach(stat => {
+      sum += stat.confirmedAmount;
+    });
+    return sum;
+  }, [groupsStatsMap]);
+
+  const totalGroupsPending = useMemo(() => {
+    let sum = 0;
+    groupsStatsMap.forEach(stat => {
+      sum += stat.pendingAmount;
+    });
+    return sum;
+  }, [groupsStatsMap]);
+
   const totalGroupsRemaining = useMemo(() => {
     let sum = 0;
     groupsStatsMap.forEach(stat => {
@@ -270,23 +322,47 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
   if (!selectedGroupId || !group) {
     return (
       <div className="flex flex-col gap-5 h-full p-4 sm:p-6 overflow-y-auto custom-scrollbar glass-card md:bg-transparent md:border-none md:backdrop-filter-none rounded-3xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-white/90">Guruhni tanlang</h2>
             <p className="text-xs text-white/50 mt-0.5">Davomat va to'lovlar statistikasini ko'rish uchun guruh ustiga bosing</p>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs">
-            <div>
-              <span className="text-white/40 block text-[10px]">Jami yig'ilgan:</span>
-              <span className="font-bold text-emerald-400">{formatSum(totalGroupsCollected)}</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Markaz tomonidan tasdiqlangan va tasdiqlanmagan summa */}
+            <div className="flex items-center gap-2 sm:gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs">
+              <div>
+                <span className="text-white/40 flex items-center gap-1 text-[10px]">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                  Tasdiqlangan:
+                </span>
+                <span className="font-bold text-emerald-400">{formatSum(totalGroupsConfirmed)}</span>
+              </div>
+              <div className="w-px h-6 bg-white/10" />
+              <div>
+                <span className="text-white/40 flex items-center gap-1 text-[10px]">
+                  <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                  Tasdiqlanmagan:
+                </span>
+                <span className={cn("font-bold", totalGroupsPending > 0 ? "text-amber-400" : "text-white/70")}>
+                  {formatSum(totalGroupsPending)}
+                </span>
+              </div>
             </div>
-            <div className="w-px h-6 bg-white/10" />
-            <div>
-              <span className="text-white/40 block text-[10px]">Jami qolgan:</span>
-              <span className={cn("font-bold", totalGroupsRemaining > 0 ? "text-rose-400" : "text-white/70")}>
-                {formatSum(totalGroupsRemaining)}
-              </span>
+
+            {/* Jami yig'ilgan va Jami qolgan summa */}
+            <div className="flex items-center gap-2 sm:gap-3 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs">
+              <div>
+                <span className="text-white/40 block text-[10px]">Jami yig'ilgan:</span>
+                <span className="font-bold text-emerald-400">{formatSum(totalGroupsCollected)}</span>
+              </div>
+              <div className="w-px h-6 bg-white/10" />
+              <div>
+                <span className="text-white/40 block text-[10px]">Jami qolgan:</span>
+                <span className={cn("font-bold", totalGroupsRemaining > 0 ? "text-rose-400" : "text-white/70")}>
+                  {formatSum(totalGroupsRemaining)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -294,7 +370,8 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-none">
           {activeGroups.map(g => {
             const gStats = groupsStatsMap.get(g.id) || getGroupFinancialStats(g, data.students, data.payments, monthKey);
-            const daysStr = g.days.map(d => DAY_NAMES_SHORT[d]).join('-');
+            const effectiveDays = (g.days && g.days.length > 0) ? g.days : [1, 2, 3, 4, 5, 6];
+            const daysStr = effectiveDays.map(d => DAY_NAMES_SHORT[d]).join('-');
 
             return (
               <button
@@ -479,9 +556,35 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-5">
           {selectedGroupStats && (
             <>
+              <div className="text-left sm:text-center">
+                <div className="text-emerald-400 font-bold text-sm sm:text-base">
+                  {formatSum(selectedGroupStats.confirmedAmount)}
+                </div>
+                <div className="text-[10px] text-emerald-400/80 uppercase font-medium tracking-wider">
+                  Tasdiqlangan
+                </div>
+              </div>
+
+              <div className="text-left sm:text-center">
+                <div className={cn(
+                  "font-bold text-sm sm:text-base",
+                  selectedGroupStats.pendingAmount > 0 ? "text-amber-400" : "text-white/60"
+                )}>
+                  {formatSum(selectedGroupStats.pendingAmount)}
+                </div>
+                <div className={cn(
+                  "text-[10px] uppercase font-medium tracking-wider",
+                  selectedGroupStats.pendingAmount > 0 ? "text-amber-400/80" : "text-white/40"
+                )}>
+                  Tasdiqlanmagan
+                </div>
+              </div>
+
+              <div className="w-px h-7 bg-white/10 hidden sm:block" />
+
               <div className="text-left sm:text-center">
                 <div className="text-emerald-400 font-bold text-base sm:text-lg">
                   {formatSum(selectedGroupStats.collectedAmount)}
@@ -623,10 +726,11 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                     </td>
                     {lessonDates.map(date => {
                       const checkDate = new Date(date).getTime();
-                      const joinDate = new Date(student.joinDate).getTime();
+                      const checkMonth = date.slice(0, 7);
+                      const joinMonth = (student.joinDate || '').slice(0, 7);
                       let isActive = true;
                       
-                      if (checkDate < joinDate) isActive = false;
+                      if (joinMonth && checkMonth < joinMonth) isActive = false;
                       if (student.deletedAt && checkDate > new Date(student.deletedAt).getTime()) isActive = false;
                       if (student.archived && student.archivedAt && checkDate > new Date(student.archivedAt).getTime()) isActive = false;
                       
@@ -947,7 +1051,9 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                           {s.isValid && (
                             <div className="text-right shrink-0">
                               <div className="font-bold text-emerald-400">{formatSum(s.monthlyPayment)}</div>
-                              <div className="text-[10px] text-white/40">oylik to'lov</div>
+                              <div className="text-[10px] text-white/40">
+                                {s.usedGroupDefault ? "guruh to'lovi (avto)" : "oylik to'lov"}
+                              </div>
                             </div>
                           )}
                         </div>

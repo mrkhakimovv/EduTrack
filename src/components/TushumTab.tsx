@@ -301,7 +301,7 @@ export function TushumTab({
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-600/25 transition-all shrink-0 cursor-pointer"
           >
             <CheckCheck className="w-4 h-4" />
-            <span>Barchasini qabul qilish ({overallStats.pendingCount} ta)</span>
+            <span>Barchasini tasdiqlash ({overallStats.pendingCount} ta)</span>
           </button>
         )}
       </div>
@@ -312,7 +312,7 @@ export function TushumTab({
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-2 shadow-lg shadow-emerald-950/20">
           <div className="flex items-center justify-between">
             <span className="text-xs sm:text-sm font-medium text-emerald-300/90">
-              Qabul qilingan summa (Markazda)
+              Tasdiqlangan summa (Markazda)
             </span>
             <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <CheckCircle2 className="w-4 h-4" />
@@ -331,7 +331,7 @@ export function TushumTab({
         <div className="bg-amber-500/10 border border-amber-500/35 rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-2 shadow-lg shadow-amber-950/20">
           <div className="flex items-center justify-between">
             <span className="text-xs sm:text-sm font-medium text-amber-300/90">
-              Qabul qilinmagan summa (Kutilmoqda)
+              Tasdiqlanmagan summa (Kutilmoqda)
             </span>
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <Clock className="w-4 h-4" />
@@ -447,18 +447,18 @@ export function TushumTab({
                     ) : tStat.acceptedCount > 0 ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        Qabul qilingan
+                        Tasdiqlangan
                       </span>
                     ) : null}
                   </div>
 
                   {/* Accepted vs Unaccepted Amounts */}
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
-                    {/* Qabul qilingan summa (Green) */}
+                    {/* Tasdiqlangan summa (Green) */}
                     <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-2.5 flex flex-col">
                       <span className="text-[10px] text-emerald-300/80 font-medium flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        Qabul qilingan
+                        Tasdiqlangan
                       </span>
                       <span className="font-bold text-emerald-400 text-xs sm:text-sm mt-1 truncate">
                         {formatSum(tStat.acceptedAmount)}
@@ -468,7 +468,7 @@ export function TushumTab({
                       </span>
                     </div>
 
-                    {/* Qabul qilinmagan summa (Yellow) */}
+                    {/* Tasdiqlanmagan summa (Yellow) */}
                     <div
                       className={cn(
                         "rounded-xl p-2.5 flex flex-col border",
@@ -489,7 +489,7 @@ export function TushumTab({
                             tStat.pendingAmount > 0 ? "bg-amber-400" : "bg-white/30"
                           )}
                         />
-                        Qabul qilinmagan
+                        Tasdiqlanmagan
                       </span>
                       <span
                         className={cn(
@@ -510,7 +510,7 @@ export function TushumTab({
                     </div>
                   </div>
 
-                  {/* Progress & Quick Accept Button */}
+                  {/* Progress & Quick Confirm Button */}
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <div className="flex-1">
                       <div className="flex justify-between text-[10px] text-white/50 mb-1">
@@ -534,10 +534,10 @@ export function TushumTab({
                         }}
                         disabled={acceptingAll}
                         className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all shrink-0 flex items-center gap-1 cursor-pointer"
-                        title="Shu o'qituvchining barcha kutilayotgan to'lovlarini qabul qilish"
+                        title="Shu o'qituvchining barcha kutilayotgan to'lovlarini tasdiqlash"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>Qabul qilish</span>
+                        <span>Tasdiqlash</span>
                       </button>
                     )}
                   </div>
@@ -590,7 +590,7 @@ export function TushumTab({
               )}
             >
               <span className="w-2 h-2 rounded-full bg-amber-400" />
-              Qabul qilinmagan ({overallStats.pendingCount})
+              Tasdiqlanmagan ({overallStats.pendingCount})
             </button>
             <button
               type="button"
@@ -603,7 +603,7 @@ export function TushumTab({
               )}
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              Qabul qilingan ({overallStats.acceptedCount})
+              Tasdiqlangan ({overallStats.acceptedCount})
             </button>
           </div>
         </div>
@@ -677,8 +677,8 @@ export function TushumTab({
                           )}
                         >
                           {isPending
-                            ? "Qabul qilinmagan (Sariq)"
-                            : "Qabul qilingan (Yashil)"}
+                            ? "Tasdiqlanmagan (Sariq)"
+                            : "Tasdiqlangan (Yashil)"}
                         </span>
                       </div>
 
@@ -718,7 +718,7 @@ export function TushumTab({
                     </div>
                   </div>
 
-                  {/* Right: Amount & Accept Action */}
+                  {/* Right: Amount & Confirm Action */}
                   <div className="flex items-center justify-between sm:justify-end gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10 shrink-0">
                     <div className="flex flex-col sm:items-end">
                       <span
@@ -742,12 +742,12 @@ export function TushumTab({
                         className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>{isAcceptingThis ? "Saqlanmoqda..." : "Qabul qilish"}</span>
+                        <span>{isAcceptingThis ? "Tasdiqlanmoqda..." : "Tasdiqlash"}</span>
                       </button>
                     ) : (
                       <div className="px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 font-bold text-xs flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>Qabul qilindi</span>
+                        <span>Tasdiqlandi</span>
                       </div>
                     )}
                   </div>

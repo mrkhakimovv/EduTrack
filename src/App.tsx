@@ -55,13 +55,12 @@ export default function App() {
   const [addTeacherOpen, setAddTeacherOpen] = useState(false);
   const [teachersList, setTeachersList] = useState<any[]>([]);
 
-  // Listen to teachers for the center if center_admin or teacher
+  // Listen to teachers for the center if center_admin; for a teacher account, only keep that teacher
   useEffect(() => {
-    const targetCenterId = appUser?.role === 'center_admin' ? appUser.uid : appUser?.centerId;
-    if (targetCenterId) {
+    if (appUser?.role === 'center_admin') {
       const q = query(
         collection(db, 'users'),
-        where('centerId', '==', targetCenterId),
+        where('centerId', '==', appUser.uid),
         where('role', '==', 'teacher')
       );
       const unsub = onSnapshot(q, (snap) => {
@@ -77,12 +76,13 @@ export default function App() {
         uid: appUser.uid,
         id: appUser.uid,
         fullName: appUser.fullName,
-        subject: appUser.subject
+        subject: appUser.subject,
+        teacherId: appUser.teacherId
       }]);
     } else {
       setTeachersList([]);
     }
-  }, [appUser?.role, appUser?.uid, appUser?.centerId, appUser?.fullName, appUser?.subject]);
+  }, [appUser?.role, appUser?.uid, appUser?.fullName, appUser?.subject, appUser?.teacherId]);
 
   // Always select a specific teacher account when teachersList is available so teacher accounts never mix
   useEffect(() => {
@@ -341,14 +341,27 @@ export default function App() {
   const openEditStudent = (id: string) => { setEditStudentObj(data.students.find(s => s.id === id)); setShowStudentModal(true); };
 
   const handleSaveGroup = (groupData: any) => {
-    if (editGroupObj) {
-      updateGroup(editGroupObj.id, groupData);
-    } else {
-      const finalGroupData = { ...groupData };
+    const finalGroupData = { ...groupData };
+    if (appUser?.role === 'teacher') {
+      finalGroupData.teacherId = appUser.uid;
+      finalGroupData.teacherName = appUser.fullName;
+    } else if (appUser?.role === 'center_admin') {
       if (!finalGroupData.teacherId && selectedTeacherObj) {
         finalGroupData.teacherId = selectedTeacherObj.uid || selectedTeacherObj.id;
         finalGroupData.teacherName = selectedTeacherObj.fullName;
       }
+      if (finalGroupData.teacherId) {
+        const matchedTeacher = teachersList.find(t => (t.uid || t.id) === finalGroupData.teacherId);
+        if (matchedTeacher && !finalGroupData.teacherName) {
+          finalGroupData.teacherName = matchedTeacher.fullName;
+        }
+        setSelectedTeacherAccountId(finalGroupData.teacherId);
+      }
+    }
+
+    if (editGroupObj) {
+      updateGroup(editGroupObj.id, finalGroupData);
+    } else {
       addGroup(finalGroupData);
     }
     setShowGroupModal(false);
@@ -670,6 +683,7 @@ export default function App() {
           initialData={editGroupObj}
           teachers={teachersList}
           defaultTeacherId={activeTeacherIdKey}
+          canSelectTeacher={appUser?.role === 'center_admin'}
           onClose={() => setShowGroupModal(false)}
           onSave={handleSaveGroup}
         />

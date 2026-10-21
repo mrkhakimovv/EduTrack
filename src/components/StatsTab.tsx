@@ -222,12 +222,12 @@ export function StatsTab({ data, monthKey, updatePayment, deletePayment, archive
                         {isPending ? (
                           <>
                             <Clock className="w-2.5 h-2.5" />
-                            <span>Kutilmoqda (Sariq)</span>
+                            <span>Tasdiqlanmagan (Sariq)</span>
                           </>
                         ) : (
                           <>
                             <CheckCircle2 className="w-2.5 h-2.5" />
-                            <span>Qabul qilingan (Yashil)</span>
+                            <span>Tasdiqlangan (Yashil)</span>
                           </>
                         )}
                       </span>

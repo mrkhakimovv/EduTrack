@@ -44,8 +44,21 @@ export function useAppData(appUser?: AppUser | null) {
         return;
       }
 
+      // Resolve user profile reliably so we don't miss centerId/role before appUser loads
+      let resolvedProfile: Partial<AppUser> | null = appUserRef.current || null;
+      if (!resolvedProfile) {
+        try {
+          const uSnap = await getDoc(doc(db, 'users', user.uid));
+          if (uSnap.exists()) {
+            resolvedProfile = { ...(uSnap.data() as any), uid: user.uid };
+          }
+        } catch (e) {
+          console.warn("Could not retrieve user profile in useAppData:", e);
+        }
+      }
+
       // Determine the shared center ID (or user's own UID if independent)
-      const targetCenterId = await getTargetCenterId(user.uid);
+      const targetCenterId = resolvedProfile?.centerId || await getTargetCenterId(user.uid);
 
       const groupsRef = query(collection(db, 'groups'), where('userId', '==', targetCenterId));
       const studentsRef = query(collection(db, 'students'), where('userId', '==', targetCenterId));
@@ -61,7 +74,7 @@ export function useAppData(appUser?: AppUser | null) {
       
       const updateLocal = () => {
         if (groupsReady && studentsReady && paymentsReady && attendanceReady) {
-          const currentAppUser = appUserRef.current;
+          const currentAppUser = appUserRef.current || resolvedProfile;
           const isCenterTeacher =
             currentAppUser?.role === 'teacher' &&
             Boolean(currentAppUser?.centerId) &&
@@ -70,18 +83,31 @@ export function useAppData(appUser?: AppUser | null) {
           if (isCenterTeacher) {
             const teacherUid = user.uid;
             const teacherCode = currentAppUser?.teacherId;
+            const teacherFullName = currentAppUser?.fullName;
 
-            const filteredGroups = rawGroups.filter(
-              g =>
-                g.teacherId === teacherUid ||
-                (teacherCode && g.teacherId === teacherCode)
-            );
+            const filteredGroups = rawGroups.filter(g => {
+              if (g.teacherId) {
+                return (
+                  g.teacherId === teacherUid ||
+                  Boolean(teacherCode && g.teacherId === teacherCode)
+                );
+              }
+              if (
+                g.teacherName &&
+                teacherFullName &&
+                g.teacherName.trim().toLowerCase() === teacherFullName.trim().toLowerCase()
+              ) {
+                return true;
+              }
+              return false;
+            });
             const teacherGroupIds = new Set(filteredGroups.map(g => g.id));
 
             const filteredStudents = rawStudents
               .filter(
                 s =>
                   s.teacherId === teacherUid ||
+                  (teacherCode && s.teacherId === teacherCode) ||
                   (s.groupIds || []).some(gid => teacherGroupIds.has(gid)) ||
                   (s.history &&
                     s.history.some(h => (h.groupIds || []).some(gid => teacherGroupIds.has(gid))))
@@ -99,6 +125,7 @@ export function useAppData(appUser?: AppUser | null) {
             const filteredPayments = rawPayments.filter(
               p =>
                 p.teacherId === teacherUid ||
+                (teacherCode && p.teacherId === teacherCode) ||
                 ((!p.teacherId || p.teacherId === targetCenterId) && teacherStudentIds.has(p.studentId))
             );
 
@@ -156,7 +183,7 @@ export function useAppData(appUser?: AppUser | null) {
       unsubPayments();
       unsubAttendance();
     };
-  }, [appUser?.centerId, appUser?.role, appUser?.teacherId, getTargetCenterId]);
+  }, [appUser?.centerId, appUser?.role, appUser?.teacherId, appUser?.fullName, getTargetCenterId]);
 
   const addGroup = useCallback(async (group: Omit<Group, "id">) => {
     if (!auth.currentUser) return;
@@ -165,12 +192,20 @@ export function useAppData(appUser?: AppUser | null) {
     const docRef = doc(db, 'groups', newId);
     try {
       const createdAt = group.createdAt || new Date().toISOString();
+      const isTeacherAccount = appUserRef.current?.role === 'teacher';
+      const resolvedTeacherId = isTeacherAccount
+        ? auth.currentUser.uid
+        : group.teacherId;
+      const resolvedTeacherName = isTeacherAccount
+        ? (appUserRef.current?.fullName || group.teacherName)
+        : group.teacherName;
+
       await setDoc(docRef, JSON.parse(JSON.stringify({ 
         ...group, 
         userId: centerId,
         centerId: centerId,
-        teacherId: group.teacherId || (appUserRef.current?.role === 'teacher' ? auth.currentUser.uid : undefined),
-        teacherName: group.teacherName || (appUserRef.current?.role === 'teacher' ? appUserRef.current.fullName : undefined),
+        teacherId: resolvedTeacherId,
+        teacherName: resolvedTeacherName,
         createdAt 
       })));
     } catch (e) { handleFirestoreError(e, OperationType.CREATE, `groups/${newId}`); }

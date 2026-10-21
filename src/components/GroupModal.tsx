@@ -7,14 +7,22 @@ interface GroupModalProps {
   initialData?: Group | null;
   teachers?: any[];
   defaultTeacherId?: string;
+  canSelectTeacher?: boolean;
   onClose: () => void;
   onSave: (group: Omit<Group, "id">) => void;
 }
 
-export function GroupModal({ initialData, teachers = [], defaultTeacherId, onClose, onSave }: GroupModalProps) {
+export function GroupModal({
+  initialData,
+  teachers = [],
+  defaultTeacherId,
+  canSelectTeacher = false,
+  onClose,
+  onSave
+}: GroupModalProps) {
   const [name, setName] = useState("");
   const [time, setTime] = useState("");
-  const [days, setDays] = useState<number[]>([]);
+  const [days, setDays] = useState<number[]>([1, 3, 5]);
   const [monthlyPayment, setMonthlyPayment] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [teacherName, setTeacherName] = useState("");
@@ -24,12 +32,12 @@ export function GroupModal({ initialData, teachers = [], defaultTeacherId, onClo
     if (initialData) {
       setName(initialData.name);
       setTime(initialData.time);
-      setDays(initialData.days);
+      setDays(initialData.days && initialData.days.length > 0 ? initialData.days : [1, 3, 5]);
       setMonthlyPayment(initialData.monthlyPayment?.toString() || "");
       
       const existingTId =
         initialData.teacherId ||
-        (defaultTeacherId && defaultTeacherId !== 'all' ? defaultTeacherId : "") ||
+        (defaultTeacherId && defaultTeacherId !== 'all' && defaultTeacherId !== 'none' ? defaultTeacherId : "") ||
         (teachers.length > 0 ? (teachers[0].uid || teachers[0].id) : "");
       setTeacherId(existingTId);
       const matched = teachers.find(t => (t.uid || t.id) === existingTId);
@@ -40,7 +48,8 @@ export function GroupModal({ initialData, teachers = [], defaultTeacherId, onClo
         setCreatedAt(initialData.createdAt.split('T')[0]);
       }
     } else {
-      if (defaultTeacherId && defaultTeacherId !== 'all') {
+      setDays([1, 3, 5]);
+      if (defaultTeacherId && defaultTeacherId !== 'all' && defaultTeacherId !== 'none') {
         const matched = teachers.find(t => (t.uid || t.id) === defaultTeacherId);
         if (matched) {
           setTeacherId(matched.uid || matched.id);
@@ -79,13 +88,13 @@ export function GroupModal({ initialData, teachers = [], defaultTeacherId, onClo
 
     let finalTeacherId = teacherId;
     if (!finalTeacherId && teachers.length > 0) {
-      finalTeacherId = (defaultTeacherId && defaultTeacherId !== 'all')
+      finalTeacherId = (defaultTeacherId && defaultTeacherId !== 'all' && defaultTeacherId !== 'none')
         ? defaultTeacherId
         : (teachers[0].uid || teachers[0].id);
     }
 
     let finalTeacherName = teacherName;
-    if (finalTeacherId && !finalTeacherName) {
+    if (finalTeacherId) {
       const selected = teachers.find(t => t.uid === finalTeacherId || t.id === finalTeacherId);
       if (selected) finalTeacherName = selected.fullName;
     }
@@ -93,7 +102,7 @@ export function GroupModal({ initialData, teachers = [], defaultTeacherId, onClo
     onSave({ 
       name: name.trim(), 
       time, 
-      days,
+      days: days.length > 0 ? days : [1, 2, 3, 4, 5, 6],
       monthlyPayment: monthlyPayment ? parseInt(monthlyPayment.replace(/\D/g, ''), 10) : undefined,
       teacherId: finalTeacherId || undefined,
       teacherName: finalTeacherName || undefined,
@@ -127,7 +136,7 @@ export function GroupModal({ initialData, teachers = [], defaultTeacherId, onClo
             />
           </div>
 
-          {teachers.length > 0 && (
+          {canSelectTeacher && teachers.length > 0 && (
             <div>
               <label className="block text-sm text-white/70 mb-1 ml-1">Mas'ul o'qituvchi *</label>
               <div className="relative">

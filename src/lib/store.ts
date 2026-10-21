@@ -109,6 +109,9 @@ export function generateId(): string {
 export function getLessonDates(group: Group, year: number, month: number): string[] {
   const dates: string[] = [];
   const date = new Date(year, month, 1);
+  const targetMonthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const createdDateStr = (group.createdAt || '').split('T')[0];
+  const createdMonthPrefix = createdDateStr ? createdDateStr.slice(0, 7) : '';
   
   while (date.getMonth() === month) {
     const dd = String(date.getDate()).padStart(2, '0');
@@ -116,25 +119,24 @@ export function getLessonDates(group: Group, year: number, month: number): strin
     const yyyy = date.getFullYear();
     const dateStr = `${yyyy}-${mm}-${dd}`;
     const dateTs = new Date(`${dateStr}T23:59:59`).getTime();
-    const groupCreatedTs = new Date(group.createdAt).getTime();
-    
-    // Treat the start date as midnight of that day, so we compare dates easily
-    const createdDateOnlyTs = new Date(`${group.createdAt.split('T')[0]}T00:00:00`).getTime();
-    const currentIterTs = new Date(`${dateStr}T00:00:00`).getTime();
 
-    if (currentIterTs >= createdDateOnlyTs) {
+    if (!createdMonthPrefix || targetMonthPrefix >= createdMonthPrefix) {
       let daysForDate = group.days;
       if (group.history && group.history.length > 0) {
         for (let i = 0; i < group.history.length; i++) {
           const h = group.history[i];
-          if (new Date(h.updatedAt).getTime() > dateTs) {
+          if (new Date(h.updatedAt).getTime() > dateTs && h.days && h.days.length > 0) {
             daysForDate = h.days;
             break;
           }
         }
       }
+
+      const effectiveDays = (daysForDate && daysForDate.length > 0)
+        ? daysForDate
+        : [1, 2, 3, 4, 5, 6];
       
-      if (daysForDate.includes(date.getDay())) {
+      if (effectiveDays.includes(date.getDay())) {
         dates.push(dateStr);
       }
     }
@@ -206,6 +208,8 @@ export interface GroupFinancialStats {
   totalStudents: number;
   expectedAmount: number;
   collectedAmount: number;
+  confirmedAmount: number;
+  pendingAmount: number;
   remainingAmount: number;
   paidPercentage: number;
   debtorCount: number;
@@ -239,6 +243,8 @@ export function getGroupFinancialStats(
 
   let totalExpected = 0;
   let totalCollected = 0;
+  let totalConfirmed = 0;
+  let totalPending = 0;
   let totalRemaining = 0;
   let debtorCount = 0;
 
@@ -260,25 +266,44 @@ export function getGroupFinancialStats(
     }
 
     const studentTotalExpected = getExpectedPayment(student, monthKey);
-    const studentTotalPaid = payments
-      .filter(p => p.studentId === student.id && p.month === monthKey)
+    const studentPaymentsInMonth = payments.filter(p => p.studentId === student.id && p.month === monthKey);
+    const studentTotalPaid = studentPaymentsInMonth.reduce((sum, p) => sum + p.amount, 0);
+    const studentConfirmedPaid = studentPaymentsInMonth
+      .filter(p => !isPaymentPending(p))
+      .reduce((sum, p) => sum + p.amount, 0);
+    const studentPendingPaid = studentPaymentsInMonth
+      .filter(p => isPaymentPending(p))
       .reduce((sum, p) => sum + p.amount, 0);
 
     let studentPaidForGroup = 0;
+    let studentConfirmedForGroup = 0;
+    let studentPendingForGroup = 0;
+
     if (studentTotalExpected > 0) {
       const ratio = studentExpectedForGroup / studentTotalExpected;
       studentPaidForGroup = Math.min(studentExpectedForGroup, Math.round(studentTotalPaid * ratio));
       if (studentTotalPaid > studentTotalExpected) {
         studentPaidForGroup = Math.round(studentTotalPaid * ratio);
       }
+      studentConfirmedForGroup = Math.round(studentConfirmedPaid * ratio);
+      studentPendingForGroup = Math.round(studentPendingPaid * ratio);
     } else if (studentExpectedForGroup > 0) {
       studentPaidForGroup = Math.min(studentExpectedForGroup, studentTotalPaid);
+      studentConfirmedForGroup = studentConfirmedPaid;
+      studentPendingForGroup = studentPendingPaid;
+    } else {
+      const numGroups = Math.max(1, (student.groupIds || []).length);
+      studentPaidForGroup = Math.round(studentTotalPaid / numGroups);
+      studentConfirmedForGroup = Math.round(studentConfirmedPaid / numGroups);
+      studentPendingForGroup = Math.round(studentPendingPaid / numGroups);
     }
 
     const studentRemainingForGroup = Math.max(0, studentExpectedForGroup - studentPaidForGroup);
 
     totalExpected += studentExpectedForGroup;
     totalCollected += studentPaidForGroup;
+    totalConfirmed += studentConfirmedForGroup;
+    totalPending += studentPendingForGroup;
     totalRemaining += studentRemainingForGroup;
     if (studentRemainingForGroup > 0) {
       debtorCount++;
@@ -292,6 +317,8 @@ export function getGroupFinancialStats(
     totalStudents: groupStudents.length,
     expectedAmount: totalExpected,
     collectedAmount: totalCollected,
+    confirmedAmount: totalConfirmed,
+    pendingAmount: totalPending,
     remainingAmount: totalRemaining,
     paidPercentage,
     debtorCount

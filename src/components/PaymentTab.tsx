@@ -199,7 +199,7 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
                       <div className="flex flex-col gap-0.5">
                         <span className="text-amber-400 font-semibold flex items-center gap-1.5 text-xs">
                           <Clock className="h-3.5 w-3.5 shrink-0" />
-                          <span>Kutilmoqda (Markaz qabul qilmagan)</span>
+                          <span>Kutilmoqda (Markaz tasdiqlamagan)</span>
                         </span>
                         {debt > 0 && (
                           <span className="text-rose-400 text-xs font-medium">
