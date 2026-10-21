@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { AppData, Student, getDebtAmount, PaymentRecord, hasStudentPendingPayment } from '../lib/store';
+import { AppData, Student, getDebtAmount, getExpectedPayment, formatSum, PaymentRecord, hasStudentPendingPayment } from '../lib/store';
 import { Search, CheckCircle2, Archive, ArrowLeft, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -15,6 +15,7 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   
   const [amountInput, setAmountInput] = useState("");
+  const [waiveRemaining, setWaiveRemaining] = useState(false);
   const [paymentType, setPaymentType] = useState<"Naqd" | "Karta" | "">("");
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -34,6 +35,7 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
       } else {
         setAmountInput("");
       }
+      setWaiveRemaining(false);
     }
   }, [selectedStudent, monthKey, data.payments]);
 
@@ -42,9 +44,14 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
     const amount = parseInt(amountInput, 10);
     if (isNaN(amount) || amount <= 0) return;
 
+    const currentDebt = getDebtAmount(selectedStudent, monthKey, data.payments);
+    const standardAmount = currentDebt > 0 ? currentDebt : getExpectedPayment(selectedStudent, monthKey);
+    const remainingDiff = standardAmount > 0 && amount < standardAmount ? (standardAmount - amount) : 0;
+
     addPayment({
       studentId: selectedStudent.id,
       amount,
+      ...(waiveRemaining && remainingDiff > 0 ? { waivedAmount: remainingDiff } : {}),
       month: monthKey,
       note: paymentType // Use paymentType as note directly
     });
@@ -54,6 +61,7 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
     
     setSelectedStudent(null);
     setAmountInput("");
+    setWaiveRemaining(false);
     setPaymentType("");
     setSearch("");
   };
@@ -84,71 +92,138 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
       </div>
 
       {/* Payment Form (Active only when student selected) */}
-      {selectedStudent && (
-        <div className={cn(
-          "bg-primary/5 border border-primary/20 rounded-xl p-5 fade-in",
-          "fixed inset-0 z-[100] h-[100dvh] bg-sys-base flex flex-col md:static md:h-auto md:z-auto md:bg-primary/5 md:block p-4 sm:p-5 pt-6"
-        )}>
-          <div className="flex items-center justify-between mb-6 md:mb-4">
-            <h3 className="font-semibold text-xl md:text-lg text-white">
-              {selectedStudent.fullName} uchun to'lov
-            </h3>
-            <button 
-              onClick={() => setSelectedStudent(null)}
-              className="text-sm text-white/50 hover:text-white px-3 py-1.5 bg-white/5 rounded-lg md:px-0 md:py-0 md:bg-transparent md:rounded-none"
-            >
-              Bekor qilish
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 md:gap-4 items-end flex-1 md:flex-none">
-            <div className="sm:col-span-5 flex flex-col gap-1">
-              <label className="block text-sm md:text-xs text-white/50 mb-1 ml-1">Summa (so'm)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={amountInput}
-                onChange={e => setAmountInput(e.target.value.replace(/\D/g, ''))}
-                onWheel={e => e.currentTarget.blur()}
-                placeholder="0"
-                className="w-full bg-black/20 border border-white/10 rounded-xl md:rounded-lg px-4 py-3 md:px-3 md:py-2 text-white text-lg md:text-base focus:outline-none focus:border-primary/50"
-              />
-            </div>
-            <div className="sm:col-span-5 flex justify-end">
-                <div className="flex bg-black/40 p-1.5 md:p-1 rounded-xl md:rounded-lg border border-white/5 w-full h-[52px] md:h-[42px]">
-                  <button
-                    onClick={() => setPaymentType(paymentType === "Naqd" ? "" : "Naqd")}
-                    className={cn(
-                      "flex-1 px-4 py-2 md:py-1.5 text-base md:text-sm font-medium rounded-lg md:rounded-md transition-all",
-                      paymentType === "Naqd" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
-                    )}
-                  >
-                    Naqd
-                  </button>
-                  <button
-                    onClick={() => setPaymentType(paymentType === "Karta" ? "" : "Karta")}
-                    className={cn(
-                      "flex-1 px-4 py-2 md:py-1.5 text-base md:text-sm font-medium rounded-lg md:rounded-md transition-all",
-                      paymentType === "Karta" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
-                    )}
-                  >
-                    Karta
-                  </button>
-                </div>
-            </div>
-            <div className="sm:col-span-2 flex items-end mt-auto md:mt-0 pt-4 md:pt-0">
-              <button
-                onClick={handlePay}
-                disabled={!amountInput || parseInt(amountInput) <= 0}
-                className="w-full h-[52px] md:h-[42px] text-lg md:text-base bg-primary text-white font-medium px-4 rounded-xl md:rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+      {selectedStudent && (() => {
+        const currentDebt = getDebtAmount(selectedStudent, monthKey, data.payments);
+        const standardAmount = currentDebt > 0 ? currentDebt : getExpectedPayment(selectedStudent, monthKey);
+        const enteredAmount = parseInt(amountInput.replace(/\D/g, ''), 10) || 0;
+        const remainingDiff = standardAmount > 0 && enteredAmount > 0 && enteredAmount < standardAmount
+          ? (standardAmount - enteredAmount)
+          : 0;
+
+        return (
+          <div className={cn(
+            "bg-primary/5 border border-primary/20 rounded-xl p-5 fade-in",
+            "fixed inset-0 z-[100] h-[100dvh] bg-sys-base flex flex-col md:static md:h-auto md:z-auto md:bg-primary/5 md:block p-4 sm:p-5 pt-6"
+          )}>
+            <div className="flex items-center justify-between mb-6 md:mb-4">
+              <h3 className="font-semibold text-xl md:text-lg text-white">
+                {selectedStudent.fullName} uchun to'lov
+              </h3>
+              <button 
+                onClick={() => setSelectedStudent(null)}
+                className="text-sm text-white/50 hover:text-white px-3 py-1.5 bg-white/5 rounded-lg md:px-0 md:py-0 md:bg-transparent md:rounded-none"
               >
-                To'lash
+                Bekor qilish
               </button>
             </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 md:gap-4 items-end flex-1 md:flex-none">
+              <div className="sm:col-span-5 flex flex-col gap-1">
+                <label className="block text-sm md:text-xs text-white/50 mb-1 ml-1">Summa (so'm)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={amountInput}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setAmountInput(val);
+                    const num = parseInt(val, 10) || 0;
+                    if (num >= standardAmount || num <= 0) {
+                      setWaiveRemaining(false);
+                    }
+                  }}
+                  onWheel={e => e.currentTarget.blur()}
+                  placeholder="0"
+                  className="w-full bg-black/20 border border-white/10 rounded-xl md:rounded-lg px-4 py-3 md:px-3 md:py-2 text-white text-lg md:text-base focus:outline-none focus:border-primary/50"
+                />
+              </div>
+              <div className="sm:col-span-5 flex justify-end">
+                  <div className="flex bg-black/40 p-1.5 md:p-1 rounded-xl md:rounded-lg border border-white/5 w-full h-[52px] md:h-[42px]">
+                    <button
+                      onClick={() => setPaymentType(paymentType === "Naqd" ? "" : "Naqd")}
+                      className={cn(
+                        "flex-1 px-4 py-2 md:py-1.5 text-base md:text-sm font-medium rounded-lg md:rounded-md transition-all",
+                        paymentType === "Naqd" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                      )}
+                    >
+                      Naqd
+                    </button>
+                    <button
+                      onClick={() => setPaymentType(paymentType === "Karta" ? "" : "Karta")}
+                      className={cn(
+                        "flex-1 px-4 py-2 md:py-1.5 text-base md:text-sm font-medium rounded-lg md:rounded-md transition-all",
+                        paymentType === "Karta" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+                      )}
+                    >
+                      Karta
+                    </button>
+                  </div>
+              </div>
+              <div className="sm:col-span-2 flex items-end mt-auto md:mt-0 pt-4 md:pt-0">
+                <button
+                  onClick={handlePay}
+                  disabled={!amountInput || parseInt(amountInput) <= 0}
+                  className="w-full h-[52px] md:h-[42px] text-lg md:text-base bg-primary text-white font-medium px-4 rounded-xl md:rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+                >
+                  To'lash
+                </button>
+              </div>
+            </div>
+
+            {remainingDiff > 0 && (
+              <div
+                onClick={() => setWaiveRemaining(prev => !prev)}
+                className={cn(
+                  "mt-3 flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl border cursor-pointer select-none transition-all",
+                  waiveRemaining
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                    : "bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/15"
+                )}
+              >
+                <div className="flex flex-col min-w-0">
+                  {!waiveRemaining ? (
+                    <>
+                      <span className="text-xs font-bold text-rose-400">
+                        Chegirma: {formatSum(remainingDiff)}
+                      </span>
+                      <span className="text-[10px] text-white/50">
+                        Belgilansa chegirma sifatida o'chiriladi (qarz bo'lib qolmaydi)
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs font-bold text-emerald-400">
+                        Chegirma: {formatSum(remainingDiff)} (0 so'm qarz)
+                      </span>
+                      <span className="text-[10px] text-white/50">
+                        {formatSum(remainingDiff)} chegirma qilindi va qarzdorlikka kiritilmaydi
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setWaiveRemaining(prev => !prev);
+                  }}
+                  className={cn(
+                    "w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all",
+                    waiveRemaining
+                      ? "bg-emerald-500 border-emerald-400 text-white shadow-sm shadow-emerald-500/30"
+                      : "bg-black/30 border-rose-400/50 text-transparent hover:border-rose-400"
+                  )}
+                  title="Chegirma sifatida belgilash"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Success Notification */}
       {successMsg && (

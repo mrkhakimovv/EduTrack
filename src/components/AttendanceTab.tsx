@@ -107,6 +107,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [payingStudent, setPayingStudent] = useState<Student | null>(null);
   const [amountInput, setAmountInput] = useState<string>("");
+  const [waiveRemaining, setWaiveRemaining] = useState<boolean>(false);
   const [paymentType, setPaymentType] = useState<"Naqd" | "Karta">("Naqd");
   const [paymentNote, setPaymentNote] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string>("");
@@ -149,6 +150,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
       const expected = getExpectedPayment(student, monthKey);
       setAmountInput(expected > 0 ? expected.toString() : "");
     }
+    setWaiveRemaining(false);
     setPaymentType("Naqd");
     setPaymentNote("");
   };
@@ -159,20 +161,30 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
     const amount = parseInt(amountInput.replace(/\D/g, ''), 10);
     if (isNaN(amount) || amount <= 0) return;
 
+    const currentDebt = getDebtAmount(payingStudent, monthKey, data.payments);
+    const standardAmount = currentDebt > 0 ? currentDebt : getExpectedPayment(payingStudent, monthKey);
+    const remainingDiff = standardAmount > 0 && amount < standardAmount ? (standardAmount - amount) : 0;
+
     const noteText = paymentNote.trim() ? `${paymentType} - ${paymentNote.trim()}` : paymentType;
 
     addPayment({
       studentId: payingStudent.id,
       amount,
+      ...(waiveRemaining && remainingDiff > 0 ? { waivedAmount: remainingDiff } : {}),
       month: monthKey,
       note: noteText
     });
 
-    setToastMessage(`${payingStudent.fullName} uchun ${formatSum(amount)} to'lov qabul qilindi!`);
+    setToastMessage(
+      waiveRemaining && remainingDiff > 0
+        ? `${payingStudent.fullName} uchun ${formatSum(amount)} qabul qilindi (${formatSum(remainingDiff)} chegirma)!`
+        : `${payingStudent.fullName} uchun ${formatSum(amount)} to'lov qabul qilindi!`
+    );
     setTimeout(() => setToastMessage(""), 3500);
 
     setPayingStudent(null);
     setAmountInput("");
+    setWaiveRemaining(false);
     setPaymentNote("");
   };
 
@@ -876,36 +888,109 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                 </div>
 
                 {/* Amount Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                    <label className="text-xs font-medium text-white/60">To'lov summasi (so'm)</label>
-                    {getDebtAmount(payingStudent, monthKey, data.payments) > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setAmountInput(getDebtAmount(payingStudent, monthKey, data.payments).toString())}
-                        className="text-[11px] text-primary hover:underline font-medium"
-                      >
-                        To'liq qarz summasi
-                      </button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={amountInput}
-                      onChange={e => setAmountInput(e.target.value.replace(/\D/g, ''))}
-                      onWheel={e => e.currentTarget.blur()}
-                      placeholder="0"
-                      required
-                      className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 sm:py-3 text-base sm:text-lg font-bold text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-white/40">
-                      so'm
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const currentDebt = getDebtAmount(payingStudent, monthKey, data.payments);
+                  const standardAmount = currentDebt > 0 ? currentDebt : getExpectedPayment(payingStudent, monthKey);
+                  const enteredAmount = parseInt(amountInput.replace(/\D/g, ''), 10) || 0;
+                  const remainingDiff = standardAmount > 0 && enteredAmount > 0 && enteredAmount < standardAmount
+                    ? (standardAmount - enteredAmount)
+                    : 0;
+
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                        <label className="text-xs font-medium text-white/60">To'lov summasi (so'm)</label>
+                        {currentDebt > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAmountInput(currentDebt.toString());
+                              setWaiveRemaining(false);
+                            }}
+                            className="text-[11px] text-primary hover:underline font-medium"
+                          >
+                            To'liq qarz summasi
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={amountInput}
+                          onChange={e => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setAmountInput(val);
+                            const num = parseInt(val, 10) || 0;
+                            if (num >= standardAmount || num <= 0) {
+                              setWaiveRemaining(false);
+                            }
+                          }}
+                          onWheel={e => e.currentTarget.blur()}
+                          placeholder="0"
+                          required
+                          className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 sm:py-3 text-base sm:text-lg font-bold text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-white/40">
+                          so'm
+                        </span>
+                      </div>
+
+                      {/* Chegirma + waive checkbox */}
+                      {remainingDiff > 0 && (
+                        <div
+                          onClick={() => setWaiveRemaining(prev => !prev)}
+                          className={cn(
+                            "mt-2.5 flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl border cursor-pointer select-none transition-all",
+                            waiveRemaining
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                              : "bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500/15"
+                          )}
+                        >
+                          <div className="flex flex-col min-w-0">
+                            {!waiveRemaining ? (
+                              <>
+                                <span className="text-xs font-bold text-rose-400">
+                                  Chegirma: {formatSum(remainingDiff)}
+                                </span>
+                                <span className="text-[10px] text-white/50">
+                                  Belgilansa chegirma sifatida o'chiriladi (qarz bo'lib qolmaydi)
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs font-bold text-emerald-400">
+                                  Chegirma: {formatSum(remainingDiff)} (0 so'm qarz)
+                                </span>
+                                <span className="text-[10px] text-white/50">
+                                  {formatSum(remainingDiff)} chegirma qilindi va qarzdorlikka kiritilmaydi
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              setWaiveRemaining(prev => !prev);
+                            }}
+                            className={cn(
+                              "w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-all",
+                              waiveRemaining
+                                ? "bg-emerald-500 border-emerald-400 text-white shadow-sm shadow-emerald-500/30"
+                                : "bg-black/30 border-rose-400/50 text-transparent hover:border-rose-400"
+                            )}
+                            title="Chegirma sifatida belgilash"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Optional Note */}
                 <div>

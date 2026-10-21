@@ -87,6 +87,7 @@
         "teacherId": { "type": "string" },
         "studentId": { "type": "string" },
         "amount": { "type": "number" },
+        "waivedAmount": { "type": "number" },
         "month": { "type": "string" },
         "date": { "type": "string" },
         "note": { "type": "string" },

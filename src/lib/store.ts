@@ -70,6 +70,7 @@ export interface PaymentRecord {
   id: string;
   studentId: string;
   amount: number;
+  waivedAmount?: number;
   month: string;
   date: string;
   note: string;
@@ -193,10 +194,10 @@ export function getOverallDebt(student: Student, currentMonthKey: string, paymen
 
 export function getDebtAmount(student: Student, monthKey: string, payments: PaymentRecord[]): number {
   const expected = getExpectedPayment(student, monthKey);
-  const paid = payments
-    .filter(p => p.studentId === student.id && p.month === monthKey)
-    .reduce((sum, p) => sum + p.amount, 0);
-  return Math.max(0, expected - paid);
+  const studentMonthPayments = payments.filter(p => p.studentId === student.id && p.month === monthKey);
+  const paid = studentMonthPayments.reduce((sum, p) => sum + p.amount, 0);
+  const waived = studentMonthPayments.reduce((sum, p) => sum + (p.waivedAmount || 0), 0);
+  return Math.max(0, expected - paid - waived);
 }
 
 export function isStudentDebtor(student: Student, monthKey: string, payments: PaymentRecord[]): boolean {
@@ -255,19 +256,20 @@ export function getGroupFinancialStats(
     // If student joined after this monthKey, expected is 0
     if (monthKey < joinMonthKey) return;
 
-    let studentExpectedForGroup = 0;
+    let studentBaseExpectedForGroup = 0;
     if (student.groupPricing && student.groupPricing[group.id]) {
       const p = student.groupPricing[group.id];
-      studentExpectedForGroup = monthKey === joinMonthKey ? p.firstMonth : p.monthly;
+      studentBaseExpectedForGroup = monthKey === joinMonthKey ? p.firstMonth : p.monthly;
     } else {
       const numGroups = Math.max(1, (student.groupIds || []).length);
       const studentTotalExpected = monthKey === joinMonthKey ? student.firstMonthPayment : student.monthlyPayment;
-      studentExpectedForGroup = Math.round(studentTotalExpected / numGroups);
+      studentBaseExpectedForGroup = Math.round(studentTotalExpected / numGroups);
     }
 
     const studentTotalExpected = getExpectedPayment(student, monthKey);
     const studentPaymentsInMonth = payments.filter(p => p.studentId === student.id && p.month === monthKey);
     const studentTotalPaid = studentPaymentsInMonth.reduce((sum, p) => sum + p.amount, 0);
+    const studentTotalWaived = studentPaymentsInMonth.reduce((sum, p) => sum + (p.waivedAmount || 0), 0);
     const studentConfirmedPaid = studentPaymentsInMonth
       .filter(p => !isPaymentPending(p))
       .reduce((sum, p) => sum + p.amount, 0);
@@ -275,14 +277,25 @@ export function getGroupFinancialStats(
       .filter(p => isPaymentPending(p))
       .reduce((sum, p) => sum + p.amount, 0);
 
+    let studentWaivedForGroup = 0;
+    if (studentTotalExpected > 0) {
+      const ratio = studentBaseExpectedForGroup / studentTotalExpected;
+      studentWaivedForGroup = Math.round(studentTotalWaived * ratio);
+    } else {
+      const numGroups = Math.max(1, (student.groupIds || []).length);
+      studentWaivedForGroup = Math.round(studentTotalWaived / numGroups);
+    }
+
+    const studentExpectedForGroup = Math.max(0, studentBaseExpectedForGroup - studentWaivedForGroup);
+
     let studentPaidForGroup = 0;
     let studentConfirmedForGroup = 0;
     let studentPendingForGroup = 0;
 
     if (studentTotalExpected > 0) {
-      const ratio = studentExpectedForGroup / studentTotalExpected;
+      const ratio = studentBaseExpectedForGroup / studentTotalExpected;
       studentPaidForGroup = Math.min(studentExpectedForGroup, Math.round(studentTotalPaid * ratio));
-      if (studentTotalPaid > studentTotalExpected) {
+      if (studentTotalPaid > studentExpectedForGroup) {
         studentPaidForGroup = Math.round(studentTotalPaid * ratio);
       }
       studentConfirmedForGroup = Math.round(studentConfirmedPaid * ratio);

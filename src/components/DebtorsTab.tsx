@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AppData, getDebtAmount, PaymentRecord, formatMonthKey } from '../lib/store';
+import { AppData, getDebtAmount, PaymentRecord, formatMonthKey, formatSum } from '../lib/store';
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -12,6 +12,7 @@ interface DebtorsTabProps {
 export function DebtorsTab({ data, monthKey, addPayment }: DebtorsTabProps) {
   const [payingStudentId, setPayingStudentId] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState("");
+  const [waiveRemaining, setWaiveRemaining] = useState(false);
   const [paymentType, setPaymentType] = useState<"Naqd" | "Karta">("Naqd");
 
   const debtors = useMemo(() => {
@@ -24,23 +25,28 @@ export function DebtorsTab({ data, monthKey, addPayment }: DebtorsTabProps) {
     }).filter(d => d.currentDebt > 0);
   }, [data.students, data.payments, monthKey]);
 
-  const handlePay = (studentId: string) => {
+  const handlePay = (studentId: string, currentDebt: number) => {
     const amount = parseInt(amountInput, 10);
     if(isNaN(amount) || amount <= 0) return;
+
+    const remainingDiff = currentDebt > 0 && amount < currentDebt ? (currentDebt - amount) : 0;
 
     addPayment({
       studentId,
       amount,
+      ...(waiveRemaining && remainingDiff > 0 ? { waivedAmount: remainingDiff } : {}),
       month: monthKey,
       note: paymentType
     });
     setPayingStudentId(null);
     setAmountInput("");
+    setWaiveRemaining(false);
   };
 
   const openPayForm = (studentId: string, debtStr: string) => {
     setPayingStudentId(studentId);
     setAmountInput(debtStr);
+    setWaiveRemaining(false);
     setPaymentType("Naqd");
   };
 
@@ -76,80 +82,132 @@ export function DebtorsTab({ data, monthKey, addPayment }: DebtorsTabProps) {
       </div>
 
       <div className="grid gap-4">
-        {debtors.map(({ student, currentDebt }) => (
-          <div key={student.id} className="bg-white/5 border border-white/5 border-l-destructive/50 border-l-4 rounded-xl p-4 transition-all">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              
-              <div className="flex items-center gap-4">
-                <div className="bg-destructive/20 text-destructive px-3 py-2 rounded-lg font-bold text-lg shrink-0">
-                  {new Intl.NumberFormat("uz-UZ").format(currentDebt)}
-                </div>
+        {debtors.map(({ student, currentDebt }) => {
+          const enteredAmount = parseInt(amountInput.replace(/\D/g, ''), 10) || 0;
+          const remainingDiff = payingStudentId === student.id && currentDebt > 0 && enteredAmount > 0 && enteredAmount < currentDebt
+            ? (currentDebt - enteredAmount)
+            : 0;
+
+          return (
+            <div key={student.id} className="bg-white/5 border border-white/5 border-l-destructive/50 border-l-4 rounded-xl p-4 transition-all">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 
-                <div className="flex flex-col gap-1">
-                  <div className="debt-glow">
-                    <span className="font-semibold text-white/90 text-lg">{student.fullName}</span>
+                <div className="flex items-center gap-4">
+                  <div className="bg-destructive/20 text-destructive px-3 py-2 rounded-lg font-bold text-lg shrink-0">
+                    {new Intl.NumberFormat("uz-UZ").format(currentDebt)}
+                  </div>
+                  
+                  <div className="flex flex-col gap-1">
+                    <div className="debt-glow">
+                      <span className="font-semibold text-white/90 text-lg">{student.fullName}</span>
+                    </div>
                   </div>
                 </div>
+
+                {payingStudentId === student.id ? (
+                  <div className="flex flex-col gap-2 mt-4 sm:mt-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex bg-black/40 p-1 rounded-lg">
+                        <button
+                          onClick={() => setPaymentType("Naqd")}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                            paymentType === "Naqd" ? "bg-white/10 text-white shadow-sm" : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                          )}
+                        >
+                          Naqd
+                        </button>
+                        <button
+                          onClick={() => setPaymentType("Karta")}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                            paymentType === "Karta" ? "bg-white/10 text-white shadow-sm" : "text-white/50 hover:text-white/80 hover:bg-white/5"
+                          )}
+                        >
+                          Karta
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={amountInput}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setAmountInput(val);
+                          const num = parseInt(val, 10) || 0;
+                          if (num >= currentDebt || num <= 0) {
+                            setWaiveRemaining(false);
+                          }
+                        }}
+                        onWheel={e => e.currentTarget.blur()}
+                        className="w-32 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
+                        placeholder="Summa"
+                      />
+                      <button
+                        onClick={() => handlePay(student.id, currentDebt)}
+                        disabled={!amountInput}
+                        className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-500 disabled:opacity-50 transition-colors"
+                      >
+                        To'lash
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPayingStudentId(null);
+                          setWaiveRemaining(false);
+                        }}
+                        className="bg-white/5 border border-white/10 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors"
+                      >
+                        Bekor
+                      </button>
+                    </div>
+
+                    {remainingDiff > 0 && (
+                      <div
+                        onClick={() => setWaiveRemaining(prev => !prev)}
+                        className={cn(
+                          "flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg border cursor-pointer select-none transition-all text-xs",
+                          waiveRemaining
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                            : "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                        )}
+                      >
+                        <span className="font-semibold">
+                          {!waiveRemaining
+                            ? `Chegirma: ${formatSum(remainingDiff)}`
+                            : `Chegirma: ${formatSum(remainingDiff)} (0 so'm qarz)`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setWaiveRemaining(prev => !prev);
+                          }}
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all",
+                            waiveRemaining
+                              ? "bg-emerald-500 border-emerald-400 text-white"
+                              : "bg-black/30 border-rose-400/50 text-transparent"
+                          )}
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openPayForm(student.id, currentDebt.toString())}
+                    className="w-full sm:w-auto bg-white/5 border border-white/10 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors"
+                  >
+                    Tezko'r to'lov
+                  </button>
+                )}
+
               </div>
-
-              {payingStudentId === student.id ? (
-                <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
-                  <div className="flex bg-black/40 p-1 rounded-lg">
-                    <button
-                      onClick={() => setPaymentType("Naqd")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                        paymentType === "Naqd" ? "bg-white/10 text-white shadow-sm" : "text-white/50 hover:text-white/80 hover:bg-white/5"
-                      )}
-                    >
-                      Naqd
-                    </button>
-                    <button
-                      onClick={() => setPaymentType("Karta")}
-                      className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                        paymentType === "Karta" ? "bg-white/10 text-white shadow-sm" : "text-white/50 hover:text-white/80 hover:bg-white/5"
-                      )}
-                    >
-                      Karta
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={amountInput}
-                    onChange={e => setAmountInput(e.target.value.replace(/\D/g, ''))}
-                    onWheel={e => e.currentTarget.blur()}
-                    className="w-32 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500/50"
-                    placeholder="Summa"
-                  />
-                  <button
-                    onClick={() => handlePay(student.id)}
-                    disabled={!amountInput}
-                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-500 disabled:opacity-50 transition-colors"
-                  >
-                    To'lash
-                  </button>
-                  <button
-                    onClick={() => setPayingStudentId(null)}
-                    className="bg-white/5 border border-white/10 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors"
-                  >
-                    Bekor
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => openPayForm(student.id, currentDebt.toString())}
-                  className="w-full sm:w-auto bg-white/5 border border-white/10 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors"
-                >
-                  Tezko'r to'lov
-                </button>
-              )}
-
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
