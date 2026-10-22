@@ -157,9 +157,11 @@ export function getExpectedPayment(student: Student, monthKey: string): number {
   // Use per-group pricing if available
   if (student.groupPricing && Object.keys(student.groupPricing).length > 0) {
     let total = 0;
+    let foundAny = false;
     for (const groupId of (student.groupIds || [])) {
       const pricing = student.groupPricing[groupId];
       if (pricing) {
+        foundAny = true;
         if (monthKey === joinMonthKey) {
           total += pricing.firstMonth;
         } else {
@@ -167,7 +169,9 @@ export function getExpectedPayment(student: Student, monthKey: string): number {
         }
       }
     }
-    return total;
+    if (foundAny) {
+      return total;
+    }
   }
 
   // Fallback to legacy global logic
@@ -224,22 +228,7 @@ export function getGroupFinancialStats(
 ): GroupFinancialStats {
   const groupStudents = students.filter(s => {
     if (s.deletedAt || s.archived) return false;
-    if (s.groupIds?.includes(group.id)) return true;
-    if (s.history && s.history.length > 0) {
-      const parts = monthKey.split('-');
-      if (parts.length === 2) {
-        const mYear = parseInt(parts[0], 10);
-        const mMonthIndex = parseInt(parts[1], 10) - 1;
-        const monthStartDateTs = new Date(mYear, mMonthIndex, 1).getTime();
-        const monthEndDateTs = new Date(mYear, mMonthIndex + 1, 0, 23, 59, 59, 999).getTime();
-        const historyInMonth = s.history.filter(h => {
-          const time = new Date(h.updatedAt).getTime();
-          return time >= monthStartDateTs && time <= monthEndDateTs;
-        });
-        if (historyInMonth.some(h => h.groupIds?.includes(group.id))) return true;
-      }
-    }
-    return false;
+    return Boolean(s.groupIds?.includes(group.id));
   });
 
   let totalExpected = 0;

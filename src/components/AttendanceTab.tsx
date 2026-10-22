@@ -1,7 +1,7 @@
 import { useMemo, useState, FormEvent } from 'react';
 import { AppData, getLessonDates, getDebtAmount, DAY_NAMES_SHORT, Student, getGroupFinancialStats, formatSum, getExpectedPayment, formatMonthKey, PaymentRecord, hasStudentPendingPayment } from '../lib/store';
 import { cn } from '../lib/utils';
-import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, CheckCircle2, X, UserPlus, Sparkles, GraduationCap, Clock } from 'lucide-react';
+import { ChevronDown, Users, ChevronRight, ArrowLeft, Archive, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, CheckCircle2, X, UserPlus, Sparkles, GraduationCap, Clock, ArrowRightLeft } from 'lucide-react';
 
 export interface ParsedTemplateStudent {
   fullName: string;
@@ -116,6 +116,9 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
   const [templateInput, setTemplateInput] = useState<string>("");
   const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
 
+  const [movingStudent, setMovingStudent] = useState<Student | null>(null);
+  const [selectedMoveGroupIds, setSelectedMoveGroupIds] = useState<string[]>([]);
+
   const group = data.groups.find(g => g.id === selectedGroupId);
 
   const groupDefaultPayment = useMemo(() => {
@@ -229,28 +232,108 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
     return getLessonDates(group, year, month);
   }, [group, year, month]);
 
+  const openMoveStudentModal = (student: Student) => {
+    setMovingStudent(student);
+    setSelectedMoveGroupIds([...(student.groupIds || [])]);
+  };
+
+  const toggleMoveGroupSelection = (groupId: string) => {
+    setSelectedMoveGroupIds(prev => {
+      if (prev.includes(groupId)) {
+        return prev.filter(id => id !== groupId);
+      }
+      return [...prev, groupId];
+    });
+  };
+
+  const handleConfirmMoveStudent = (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    if (!movingStudent || selectedMoveGroupIds.length === 0) return;
+
+    const oldGroupIds = movingStudent.groupIds || [];
+    const newGroupIds = selectedMoveGroupIds;
+
+    // Preserve student's exact financial figures so moving groups never alters debt or payments
+    let currentTotalMonthly = movingStudent.monthlyPayment || 0;
+    let currentTotalFirstMonth = movingStudent.firstMonthPayment || 0;
+
+    if (movingStudent.groupPricing && Object.keys(movingStudent.groupPricing).length > 0) {
+      let sumMonthly = 0;
+      let sumFirst = 0;
+      let hasMatched = false;
+      for (const gid of oldGroupIds) {
+        const p = movingStudent.groupPricing[gid];
+        if (p) {
+          hasMatched = true;
+          sumMonthly += p.monthly || 0;
+          sumFirst += p.firstMonth || 0;
+        }
+      }
+      if (hasMatched) {
+        currentTotalMonthly = sumMonthly;
+        currentTotalFirstMonth = sumFirst;
+      }
+    }
+
+    const newGroupPricing: Record<string, { monthly: number; firstMonth: number }> = {};
+    if (newGroupIds.length === 1) {
+      newGroupPricing[newGroupIds[0]] = {
+        monthly: currentTotalMonthly,
+        firstMonth: currentTotalFirstMonth
+      };
+    } else {
+      const keptGroupIds = newGroupIds.filter(id => oldGroupIds.includes(id) && movingStudent.groupPricing?.[id]);
+      const addedGroupIds = newGroupIds.filter(id => !keptGroupIds.includes(id));
+      let keptMonthlySum = 0;
+      let keptFirstSum = 0;
+
+      keptGroupIds.forEach(id => {
+        const p = movingStudent.groupPricing![id];
+        newGroupPricing[id] = { monthly: p.monthly, firstMonth: p.firstMonth };
+        keptMonthlySum += p.monthly;
+        keptFirstSum += p.firstMonth;
+      });
+
+      if (addedGroupIds.length > 0) {
+        const remMonthly = Math.max(0, currentTotalMonthly - keptMonthlySum);
+        const remFirst = Math.max(0, currentTotalFirstMonth - keptFirstSum);
+        const perAddedMonthly = Math.round(remMonthly / addedGroupIds.length);
+        const perAddedFirst = Math.round(remFirst / addedGroupIds.length);
+
+        addedGroupIds.forEach((id, idx) => {
+          const isLast = idx === addedGroupIds.length - 1;
+          newGroupPricing[id] = {
+            monthly: isLast ? Math.max(0, remMonthly - perAddedMonthly * idx) : perAddedMonthly,
+            firstMonth: isLast ? Math.max(0, remFirst - perAddedFirst * idx) : perAddedFirst
+          };
+        });
+      }
+    }
+
+    updateStudent(movingStudent.id, {
+      groupIds: newGroupIds,
+      monthlyPayment: currentTotalMonthly,
+      firstMonthPayment: currentTotalFirstMonth,
+      groupPricing: newGroupPricing
+    });
+
+    const targetGroupNames = data.groups
+      .filter(g => newGroupIds.includes(g.id))
+      .map(g => g.name)
+      .join(", ");
+
+    setToastMessage(`${movingStudent.fullName} -> ${targetGroupNames} guruhiga biriktirildi!`);
+    setTimeout(() => setToastMessage(""), 3500);
+    setMovingStudent(null);
+  };
+
   const studentsInGroup = useMemo(() => {
     return data.students.filter(s => {
       if (s.deletedAt) return false;
       if (s.archived) return false;
-      if (s.groupIds?.includes(selectedGroupId)) return true;
-      if (s.history && s.history.length > 0) {
-        const parts = monthKey.split('-');
-        if (parts.length === 2) {
-          const mYear = parseInt(parts[0], 10);
-          const mMonthIndex = parseInt(parts[1], 10) - 1;
-          const monthStartDateTs = new Date(mYear, mMonthIndex, 1).getTime();
-          const monthEndDateTs = new Date(mYear, mMonthIndex + 1, 0, 23, 59, 59, 999).getTime();
-          const historyInMonth = s.history.filter(h => {
-            const time = new Date(h.updatedAt).getTime();
-            return time >= monthStartDateTs && time <= monthEndDateTs;
-          });
-          if (historyInMonth.some(h => h.groupIds?.includes(selectedGroupId))) return true;
-        }
-      }
-      return false;
+      return Boolean(s.groupIds?.includes(selectedGroupId));
     });
-  }, [data.students, selectedGroupId, monthKey]);
+  }, [data.students, selectedGroupId]);
 
   const toggleAttendance = (studentId: string, date: string, currentStatus: "present" | "absent" | undefined) => {
     if (!selectedGroupId) return;
@@ -740,11 +823,23 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                       </div>
                       <div className="flex items-center gap-1 ml-2">
                         <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openMoveStudentModal(student);
+                          }}
+                          className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/40 hover:text-emerald-400 hover:bg-emerald-500/15 transition-colors cursor-pointer"
+                          title="O'quvchini ko'chirish (guruhini o'zgartirish)"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleArchiveStudent(student.id);
                           }}
-                          className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors"
+                          className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                           title="Arxivlash"
                         >
                           <Archive className="h-4 w-4" />
@@ -755,24 +850,11 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                       const checkDate = new Date(date).getTime();
                       const checkMonth = date.slice(0, 7);
                       const joinMonth = (student.joinDate || '').slice(0, 7);
-                      let isActive = true;
+                      let isActive = Boolean(student.groupIds?.includes(selectedGroupId));
                       
                       if (joinMonth && checkMonth < joinMonth) isActive = false;
                       if (student.deletedAt && checkDate > new Date(student.deletedAt).getTime()) isActive = false;
                       if (student.archived && student.archivedAt && checkDate > new Date(student.archivedAt).getTime()) isActive = false;
-                      
-                      if (isActive && student.history && student.history.length > 0) {
-                        const endOfDayTs = new Date(`${date}T23:59:59.999Z`).getTime();
-                        const editsAfterDate = student.history.filter(h => new Date(h.updatedAt).getTime() > endOfDayTs);
-                        editsAfterDate.sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
-                        if (editsAfterDate.length > 0) {
-                          isActive = editsAfterDate[0].groupIds?.includes(selectedGroupId);
-                        } else {
-                          isActive = student.groupIds?.includes(selectedGroupId);
-                        }
-                      } else if (isActive && (!student.history || student.history.length === 0)) {
-                        isActive = student.groupIds?.includes(selectedGroupId);
-                      }
 
                       const status = attendanceRecord[student.id]?.[date];
                       
@@ -1185,6 +1267,154 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                       <span>Saqlash {validTemplateStudents.length > 0 ? `(${validTemplateStudents.length} ta)` : ''}</span>
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Move Student to Another Group Modal */}
+      {movingStudent && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+          onClick={() => setMovingStudent(null)}
+        >
+          <div
+            className="glass-card border border-white/15 bg-sys-base rounded-2xl sm:rounded-3xl w-full max-w-md my-auto shadow-2xl relative flex flex-col max-h-[calc(100dvh-1.5rem)] sm:max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 pb-3 sm:pb-4 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 flex items-center justify-center shrink-0">
+                  <ArrowRightLeft className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-bold text-white leading-tight truncate">
+                    O'quvchini ko'chirish
+                  </h3>
+                  <p className="text-xs text-white/50 truncate">
+                    {movingStudent.fullName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMovingStudent(null)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors shrink-0 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmMoveStudent} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-4">
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 text-xs text-white/70 leading-relaxed">
+                  O'quvchi hozirda biriktirilgan guruhlar <span className="text-emerald-400 font-semibold">yashil</span> rangda belgilangan. Hozirgi guruhni o'chirib, yangi guruhni tanlashingiz mumkin — barcha to'lov va qarzdorlik hisob-kitoblari o'zgarishsiz saqlanadi.
+                </div>
+
+                <div className="space-y-2.5">
+                  <label className="block text-xs font-semibold text-white/60 uppercase tracking-wider px-0.5">
+                    Barcha guruhlar ({activeGroups.length})
+                  </label>
+
+                  <div className="space-y-2">
+                    {activeGroups.map(g => {
+                      const isSelected = selectedMoveGroupIds.includes(g.id);
+                      const wasOriginallyInGroup = (movingStudent.groupIds || []).includes(g.id);
+                      const effectiveDays = (g.days && g.days.length > 0) ? g.days : [1, 2, 3, 4, 5, 6];
+                      const daysStr = effectiveDays.map(d => DAY_NAMES_SHORT[d]).join('-');
+
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => toggleMoveGroupSelection(g.id)}
+                          className={cn(
+                            "w-full p-3.5 rounded-2xl border text-left transition-all flex items-center justify-between gap-3 cursor-pointer select-none",
+                            isSelected
+                              ? "bg-emerald-500/20 border-emerald-500/50 text-white shadow-lg shadow-emerald-950/30 ring-1 ring-emerald-400/40"
+                              : "bg-white/[0.04] border-white/10 text-white/70 hover:bg-white/[0.08] hover:border-white/20"
+                          )}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={cn(
+                                "w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-all",
+                                isSelected
+                                  ? "bg-emerald-500 border-emerald-400 text-white shadow-sm shadow-emerald-500/30"
+                                  : "bg-black/30 border-white/20 text-transparent"
+                              )}
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={cn("font-bold text-sm truncate", isSelected ? "text-emerald-300" : "text-white")}>
+                                  {g.name}
+                                </span>
+                                {g.time && (
+                                  <span className={cn(
+                                    "text-[11px] px-2 py-0.5 rounded-md font-medium",
+                                    isSelected ? "bg-emerald-500/25 text-emerald-200" : "bg-white/10 text-white/60"
+                                  )}>
+                                    {g.time}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-white/50 mt-0.5">
+                                {daysStr}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            {isSelected && wasOriginallyInGroup && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">
+                                Hozirgi guruh
+                              </span>
+                            )}
+                            {isSelected && !wasOriginallyInGroup && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">
+                                Yangi guruh
+                              </span>
+                            )}
+                            {!isSelected && wasOriginallyInGroup && (
+                              <span className="px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[10px] font-semibold">
+                                O'chirilmoqda
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedMoveGroupIds.length === 0 && (
+                    <p className="text-xs text-rose-400 font-medium px-1 pt-1">
+                      Kamida bitta guruh tanlanishi kerak!
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-4 sm:p-5 pt-3 border-t border-white/10 shrink-0 bg-sys-base/95 backdrop-blur-md flex items-center gap-2 sm:gap-3 rounded-b-2xl sm:rounded-b-3xl">
+                <button
+                  type="button"
+                  onClick={() => setMovingStudent(null)}
+                  className="flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white font-medium text-xs sm:text-sm transition-colors cursor-pointer"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={selectedMoveGroupIds.length === 0}
+                  className="flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Saqlash</span>
                 </button>
               </div>
             </form>
