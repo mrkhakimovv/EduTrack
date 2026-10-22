@@ -111,10 +111,10 @@ export function GroupModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative w-full max-w-md glass-modal rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto custom-scrollbar glass-modal rounded-2xl p-5 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-white">
             {initialData ? "Guruhni tahrirlash" : "Guruh yaratish"}

@@ -67,58 +67,59 @@ export function Header({
   const isCenterAdmin = appUser?.role === 'center_admin';
 
   return (
-    <header className="min-h-[5rem] py-3 sm:py-0 glass-card border-b border-white/10 flex items-center px-3 sm:px-8 shrink-0 relative z-50">
-      <div className="mx-auto w-full flex flex-wrap max-w-7xl items-center justify-between gap-y-3 relative">
-        <div className="flex items-center gap-2 sm:gap-4">
+    <header className="glass-card border-b border-white/10 flex flex-col justify-center px-3 sm:px-8 py-2.5 sm:py-3 shrink-0 relative z-50">
+      <div className="mx-auto w-full flex flex-wrap max-w-7xl items-center justify-between gap-y-2 relative">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="sm:hidden w-9 h-9 shrink-0 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 hover:text-white border border-white/5 transition-colors"
+            className="sm:hidden w-9 h-9 shrink-0 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white border border-white/10 transition-colors"
+            aria-label="Menyu"
           >
             {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
           
-          <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-500/30 hidden sm:flex">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-blue-600/20 rounded-xl items-center justify-center border border-blue-500/30 hidden sm:flex">
             {isCenterAdmin ? (
               <Building2 className="h-6 w-6 sm:h-7 sm:w-7 text-blue-400" />
             ) : (
               <GraduationCap className="h-6 w-6 sm:h-7 sm:w-7 text-blue-500" />
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight flex items-center gap-2">
-                <GraduationCap className="h-5 w-5 text-blue-500 sm:hidden" />
-                EduTrack
+              <h1 className="text-base sm:text-xl font-bold tracking-tight text-white leading-tight flex items-center gap-1.5 truncate">
+                <GraduationCap className="h-5 w-5 text-blue-500 sm:hidden shrink-0" />
+                <span>EduTrack</span>
               </h1>
               {isCenterAdmin ? (
-                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-semibold">
-                  <Building2 className="w-3.5 h-3.5" />
-                  {appUser?.centerName || "O'quv markaz"}
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-500/30 text-blue-300 text-[10px] sm:text-xs font-semibold truncate max-w-[130px] sm:max-w-none">
+                  <Building2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                  <span className="truncate">{appUser?.centerName || "O'quv markaz"}</span>
                 </span>
               ) : appUser?.centerName ? (
-                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[10px] sm:text-xs font-medium truncate max-w-[130px] sm:max-w-none">
                   {appUser.centerName}
                 </span>
               ) : null}
             </div>
-            <p className="text-[9px] sm:text-[10px] sm:text-xs text-white/50 uppercase tracking-widest leading-none mt-0.5">
+            <p className="text-[9px] sm:text-xs text-white/50 uppercase tracking-widest leading-none mt-0.5 truncate">
               {isCenterAdmin ? "Markaz boshqaruvi va o'qituvchilar" : "Davomat va to'lovlar"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+        <div className="flex items-center gap-1.5 sm:gap-3 ml-auto">
           {/* Center Admin Teachers Button */}
           {isCenterAdmin && onOpenTeachers && (
             <button
               onClick={onOpenTeachers}
-              className="px-3 sm:px-4 py-2 rounded-xl bg-purple-600/25 hover:bg-purple-600/35 text-purple-200 border border-purple-400/30 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all hover:scale-[1.02] shadow-sm"
+              className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-purple-600/25 hover:bg-purple-600/35 text-purple-200 border border-purple-400/30 text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition-all shadow-sm"
               title="O'quv markaz o'qituvchilarini boshqarish"
             >
-              <Users className="h-4 w-4 text-purple-300" />
-              <span>O'qituvchilar</span>
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-300 shrink-0" />
+              <span className="hidden xs:inline sm:inline">O'qituvchilar</span>
               {teachersCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-purple-500/40 text-white rounded-full text-[11px] font-bold">
+                <span className="px-1.5 py-0.2 bg-purple-500/40 text-white rounded-full text-[10px] sm:text-[11px] font-bold">
                   {teachersCount}
                 </span>
               )}
@@ -131,6 +132,14 @@ export function Header({
             title="Mavzuni o'zgartirish"
           >
             {renderThemeIcon()}
+          </button>
+
+          <button
+            onClick={() => signOut(auth)}
+            className="sm:hidden w-9 h-9 shrink-0 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-500 hover:text-red-400 border border-red-500/20 transition-colors"
+            title="Tizimdan chiqish"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
 
           <div className="hidden sm:flex flex-wrap items-center gap-2 sm:gap-3">
@@ -178,65 +187,107 @@ export function Header({
           </div>
         </div>
 
+        {/* Mobile Quick Actions Strip (Always visible on mobile so every action is 1 tap away) */}
+        <div className="sm:hidden w-full grid grid-cols-4 gap-1.5 pt-2 border-t border-white/10">
+          <button
+            type="button"
+            onClick={onCreateGroup}
+            className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-blue-600/25 hover:bg-blue-600/35 border border-blue-400/30 text-blue-200 text-[11px] font-semibold truncate"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span className="truncate">+ Guruh</span>
+          </button>
+          <button
+            type="button"
+            onClick={onAddStudent}
+            className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-emerald-600/25 hover:bg-emerald-600/35 border border-emerald-400/30 text-emerald-200 text-[11px] font-semibold truncate"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="truncate">+ O'quvchi</span>
+          </button>
+          <button
+            type="button"
+            onClick={onShowAllStudents}
+            className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/90 text-[11px] font-medium truncate"
+          >
+            <Users className="w-3.5 h-3.5 text-white/70 shrink-0" />
+            <span className="truncate">O'quvchilar</span>
+          </button>
+          <button
+            type="button"
+            onClick={onShowAllGroups}
+            className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/90 text-[11px] font-medium truncate"
+          >
+            <LayoutGrid className="w-3.5 h-3.5 text-white/70 shrink-0" />
+            <span className="truncate">Guruhlar</span>
+          </button>
+        </div>
+
         {/* Mobile Dropdown Menu */}
         {isMobileMenuOpen && (
-          <div className="sm:hidden absolute top-[110%] left-0 w-64 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col p-2 gap-1 animate-in fade-in slide-from-top-2">
-            {isCenterAdmin && onOpenTeachers && (
+          <>
+            <div
+              className="sm:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-xs"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <div className="sm:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-slate-900 border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col p-2.5 gap-1 animate-in fade-in">
+              {isCenterAdmin && onOpenTeachers && (
+                <button
+                  onClick={() => { onOpenTeachers(); setIsMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 transition-colors w-full text-left"
+                >
+                  <Users className="h-4 w-4 text-purple-400" />
+                  <span>O'qituvchilarni boshqarish ({teachersCount})</span>
+                </button>
+              )}
+              {isCenterAdmin && onOpenAddTeacher && (
+                <button
+                  onClick={() => { onOpenAddTeacher(); setIsMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-purple-300 hover:bg-purple-500/10 transition-colors w-full text-left"
+                >
+                  <UserPlus className="h-4 w-4 text-purple-400" />
+                  <span>Yangi o'qituvchi qo'shish</span>
+                </button>
+              )}
               <button
-                onClick={() => { onOpenTeachers(); setIsMobileMenuOpen(false); }}
-                className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 transition-colors w-full text-left"
+                onClick={() => { onCreateGroup(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
               >
-                <Users className="h-4 w-4 text-purple-400" />
-                <span>O'qituvchilar ({teachersCount})</span>
+                <BookOpen className="h-4 w-4 text-blue-400" />
+                Guruh yaratish
               </button>
-            )}
-            {isCenterAdmin && onOpenAddTeacher && (
               <button
-                onClick={() => { onOpenAddTeacher(); setIsMobileMenuOpen(false); }}
-                className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-purple-300 hover:bg-purple-500/10 transition-colors w-full text-left"
+                onClick={() => { onAddStudent(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
               >
-                <UserPlus className="h-4 w-4 text-purple-400" />
-                <span>O'qituvchi qo'shish</span>
+                <Users className="h-4 w-4 text-emerald-400" />
+                O'quvchi qo'shish
               </button>
-            )}
-            <button
-              onClick={() => { onCreateGroup(); setIsMobileMenuOpen(false); }}
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
-            >
-              <BookOpen className="h-4 w-4 text-blue-400" />
-              Guruh yaratish
-            </button>
-            <button
-              onClick={() => { onAddStudent(); setIsMobileMenuOpen(false); }}
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
-            >
-              <Users className="h-4 w-4 text-emerald-400" />
-              O'quvchi qo'shish
-            </button>
-            <div className="h-px bg-white/10 my-1 w-full"></div>
-            <button
-              onClick={() => { onShowAllStudents(); setIsMobileMenuOpen(false); }}
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
-            >
-              <Users className="h-4 w-4" />
-              Barcha o'quvchilar
-            </button>
-            <button
-              onClick={() => { onShowAllGroups(); setIsMobileMenuOpen(false); }}
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Barcha guruhlar
-            </button>
-            <div className="h-px bg-white/10 my-1 w-full relative"></div>
-            <button
-              onClick={() => { signOut(auth); setIsMobileMenuOpen(false); }}
-              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors w-full text-left"
-            >
-              <LogOut className="h-4 w-4" />
-              Tizimdan chiqish
-            </button>
-          </div>
+              <div className="h-px bg-white/10 my-1 w-full"></div>
+              <button
+                onClick={() => { onShowAllStudents(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
+              >
+                <Users className="h-4 w-4" />
+                Barcha o'quvchilar ro'yxati
+              </button>
+              <button
+                onClick={() => { onShowAllGroups(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-white hover:bg-white/10 transition-colors w-full text-left"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Barcha guruhlar ro'yxati
+              </button>
+              <div className="h-px bg-white/10 my-1 w-full relative"></div>
+              <button
+                onClick={() => { signOut(auth); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors w-full text-left"
+              >
+                <LogOut className="h-4 w-4" />
+                Tizimdan chiqish
+              </button>
+            </div>
+          </>
         )}
       </div>
     </header>

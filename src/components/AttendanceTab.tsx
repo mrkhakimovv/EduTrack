@@ -511,84 +511,99 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
       "flex flex-col h-full",
       selectedGroupId ? "fixed inset-0 z-[100] h-[100dvh] bg-sys-base md:static md:h-full md:z-auto md:bg-transparent" : ""
     )}>
-      <div className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/5 shrink-0 pt-6 md:pt-6">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setSelectedGroupId("")} 
-            className="p-2 border border-white/5 bg-white/5 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-xl font-bold text-white/90">
-                {group?.name} <span className="text-white/40 text-base font-normal ml-2">{group?.time}</span>
-              </h2>
-              {group && (() => {
-                const tInfo = getTeacherInfo(group);
-                return (
-                  <span
-                    onClick={() => {
-                      if (onEditGroup && group) {
-                        onEditGroup(group.id);
-                      }
-                    }}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium border transition-all cursor-pointer shadow-sm",
-                      tInfo.isAssigned
-                        ? "bg-purple-500/20 border-purple-500/35 text-purple-200 hover:bg-purple-500/30"
-                        : "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
-                    )}
-                    title="O'qituvchini o'zgartirish yoki biriktirish"
-                  >
-                    <GraduationCap className={cn("w-3.5 h-3.5 shrink-0", tInfo.isAssigned ? "text-purple-300" : "text-amber-400")} />
-                    <span>O'qituvchi: {tInfo.name}</span>
-                  </span>
-                );
-              })()}
+      <div className="p-3.5 sm:p-4 md:p-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 border-b border-white/5 shrink-0 pt-4 md:pt-6">
+        <div className="flex items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button 
+              onClick={() => setSelectedGroupId("")} 
+              className="p-2 border border-white/10 bg-white/5 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors shrink-0 cursor-pointer"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-xl font-bold text-white/90 truncate">
+                  {group?.name} <span className="text-white/40 text-xs sm:text-base font-normal ml-1">{group?.time}</span>
+                </h2>
+                {group && (() => {
+                  const tInfo = getTeacherInfo(group);
+                  return (
+                    <span
+                      onClick={() => {
+                        if (onEditGroup && group) {
+                          onEditGroup(group.id);
+                        }
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] sm:text-xs font-medium border transition-all cursor-pointer shadow-sm",
+                        tInfo.isAssigned
+                          ? "bg-purple-500/20 border-purple-500/35 text-purple-200 hover:bg-purple-500/30"
+                          : "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+                      )}
+                      title="O'qituvchini o'zgartirish yoki biriktirish"
+                    >
+                      <GraduationCap className={cn("w-3.5 h-3.5 shrink-0", tInfo.isAssigned ? "text-purple-300" : "text-amber-400")} />
+                      <span className="truncate max-w-[140px] sm:max-w-none">O'qituvchi: {tInfo.name}</span>
+                    </span>
+                  );
+                })()}
+              </div>
+              <p className="text-xs sm:text-sm text-white/50">
+                {lessonDates.length} ta dars • {studentsInGroup.length} ta o'quvchi
+              </p>
             </div>
-            <p className="text-sm text-white/50">
-              {lessonDates.length} ta dars • {studentsInGroup.length} ta o'quvchi
-            </p>
           </div>
-        </div>
 
-        {/* O'quvchi qo'shish (shablon) button */}
-        <div className="flex items-center">
+          {/* Mobile O'quvchi qo'shish button */}
           <button
             type="button"
             onClick={() => {
               setTemplateInput("");
               setShowTemplateModal(true);
             }}
-            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/25 border border-emerald-400/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md shadow-emerald-600/25 border border-emerald-400/30 shrink-0 cursor-pointer"
+          >
+            <UserPlus className="w-3.5 h-3.5 shrink-0" />
+            <span>+ O'quvchi</span>
+          </button>
+        </div>
+
+        {/* Desktop O'quvchi qo'shish (shablon) button */}
+        <div className="hidden md:flex items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setTemplateInput("");
+              setShowTemplateModal(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-md shadow-emerald-600/25 border border-emerald-400/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <UserPlus className="w-4 h-4 shrink-0" />
             <span>O'quvchi qo'shish</span>
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+        <div className="grid grid-cols-4 sm:flex sm:flex-wrap items-center gap-2 sm:gap-5 bg-white/[0.03] sm:bg-transparent p-2.5 sm:p-0 rounded-xl border border-white/5 sm:border-none">
           {selectedGroupStats && (
             <>
               <div className="text-left sm:text-center">
-                <div className="text-emerald-400 font-bold text-sm sm:text-base">
+                <div className="text-emerald-400 font-bold text-xs sm:text-base truncate">
                   {formatSum(selectedGroupStats.confirmedAmount)}
                 </div>
-                <div className="text-[10px] text-emerald-400/80 uppercase font-medium tracking-wider">
+                <div className="text-[9px] sm:text-[10px] text-emerald-400/80 uppercase font-medium tracking-wider truncate">
                   Tasdiqlangan
                 </div>
               </div>
 
               <div className="text-left sm:text-center">
                 <div className={cn(
-                  "font-bold text-sm sm:text-base",
+                  "font-bold text-xs sm:text-base truncate",
                   selectedGroupStats.pendingAmount > 0 ? "text-amber-400" : "text-white/60"
                 )}>
                   {formatSum(selectedGroupStats.pendingAmount)}
                 </div>
                 <div className={cn(
-                  "text-[10px] uppercase font-medium tracking-wider",
+                  "text-[9px] sm:text-[10px] uppercase font-medium tracking-wider truncate",
                   selectedGroupStats.pendingAmount > 0 ? "text-amber-400/80" : "text-white/40"
                 )}>
                   Tasdiqlanmagan
@@ -598,23 +613,23 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
               <div className="w-px h-7 bg-white/10 hidden sm:block" />
 
               <div className="text-left sm:text-center">
-                <div className="text-emerald-400 font-bold text-base sm:text-lg">
+                <div className="text-emerald-400 font-bold text-xs sm:text-lg truncate">
                   {formatSum(selectedGroupStats.collectedAmount)}
                 </div>
-                <div className="text-[10px] text-emerald-400/80 uppercase font-medium tracking-wider">
+                <div className="text-[9px] sm:text-[10px] text-emerald-400/80 uppercase font-medium tracking-wider truncate">
                   Yig'ilgan
                 </div>
               </div>
 
               <div className="text-left sm:text-center">
                 <div className={cn(
-                  "font-bold text-base sm:text-lg",
+                  "font-bold text-xs sm:text-lg truncate",
                   selectedGroupStats.remainingAmount > 0 ? "text-rose-400" : "text-white/60"
                 )}>
                   {formatSum(selectedGroupStats.remainingAmount)}
                 </div>
                 <div className={cn(
-                  "text-[10px] uppercase font-medium tracking-wider",
+                  "text-[9px] sm:text-[10px] uppercase font-medium tracking-wider truncate",
                   selectedGroupStats.remainingAmount > 0 ? "text-rose-400/80" : "text-white/40"
                 )}>
                   Qolgan
@@ -643,7 +658,7 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse min-w-max">
             <thead className="sticky top-0 z-30 glass-card shadow-[0_1px_0_rgba(255,255,255,0.05)]">
               <tr className="text-[11px] text-white/40 uppercase tracking-wider">
-                <th className="p-4 border-b border-white/5 font-medium sticky left-0 z-40 glass-card">Ism Familiya</th>
+                <th className="p-3 sm:p-4 border-b border-white/5 font-medium sticky left-0 z-40 glass-card max-w-[175px] sm:max-w-none">Ism Familiya</th>
                 {lessonDates.map(date => (
                   <th key={date} className="p-2 border-b border-white/5 text-center w-10">
                     <div className="font-bold text-white/90">{new Date(date).getDate()}</div>
@@ -666,15 +681,15 @@ export function AttendanceTab({ data, monthKey, year, month, setAttendance, togg
                 
                 return (
                   <tr key={student.id} className="hover:bg-white/5 transition-colors group/row">
-                    <td className="p-3 sm:p-4 flex items-center justify-between sticky left-0 z-20 bg-sys-base group-hover/row:bg-sys-hover transition-colors border-r border-white/5 md:border-none shadow-[1px_0_0_rgba(255,255,255,0.05)]">
+                    <td className="p-2.5 sm:p-4 flex items-center justify-between sticky left-0 z-20 bg-sys-base group-hover/row:bg-sys-hover transition-colors border-r border-white/5 md:border-none shadow-[1px_0_0_rgba(255,255,255,0.05)] max-w-[175px] sm:max-w-none">
                       <div 
                         onClick={() => openPaymentModal(student)}
-                        className="flex flex-col cursor-pointer group/student flex-1 pr-2 py-1 rounded-xl hover:bg-white/[0.08] px-2 -ml-2 transition-all select-none"
+                        className="flex flex-col cursor-pointer group/student flex-1 min-w-0 pr-1 sm:pr-2 py-1 rounded-xl hover:bg-white/[0.08] px-2 -ml-2 transition-all select-none"
                         title="Ushbu oy uchun to'lov qabul qilish"
                       >
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           <span className={cn(
-                            "text-sm font-semibold transition-colors group-hover/student:text-primary",
+                            "text-xs sm:text-sm font-semibold transition-colors group-hover/student:text-primary truncate",
                             hasPending
                               ? "text-amber-300"
                               : isDebtor

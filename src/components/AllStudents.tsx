@@ -120,14 +120,20 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
     <div className="fixed inset-0 z-[60] bg-sys-base/95 backdrop-blur-md overflow-y-auto w-full h-full">
       <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
         
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sticky top-0 py-4 bg-sys-base/90 backdrop-blur z-20 border-b border-white/10 gap-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <h2 className="text-2xl font-bold text-white">Barcha o'quvchilar</h2>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 sticky top-0 py-3 sm:py-4 bg-sys-base/95 backdrop-blur z-20 border-b border-white/10 gap-3 sm:gap-4">
+          <div className="flex items-center justify-between sm:justify-start gap-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Barcha o'quvchilar</h2>
+            <button onClick={onClose} className="sm:hidden p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white cursor-pointer">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-4">
             <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 shrink-0">
               <button 
                 onClick={() => setActiveTab('faol')}
                 className={cn(
-                  "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                  "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer",
                   activeTab === 'faol' ? "bg-white/10 text-white shadow-sm" : "text-white/50 hover:text-white/80"
                 )}
               >
@@ -136,11 +142,11 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
               <button 
                 onClick={() => setActiveTab('arxiv')}
                 className={cn(
-                  "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                  "px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer",
                   activeTab === 'arxiv' ? "bg-white/10 text-white shadow-sm" : "text-white/50 hover:text-white/80"
                 )}
               >
-                Arxivlangan ({archivedCount})
+                Arxiv ({archivedCount})
               </button>
             </div>
 
@@ -148,28 +154,29 @@ export function AllStudents({ data, onClose, onEdit, onDelete, onArchive }: AllS
               <button
                 onClick={() => setViewMode('grouped')}
                 className={cn(
-                  "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer",
+                  "px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer",
                   viewMode === 'grouped' ? "bg-blue-600 text-white shadow-sm" : "text-white/60 hover:text-white"
                 )}
               >
-                <Layers className="w-4 h-4" />
+                <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Guruhlar kesimida</span>
               </button>
               <button
                 onClick={() => setViewMode('cards')}
                 className={cn(
-                  "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer",
+                  "px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors cursor-pointer",
                   viewMode === 'cards' ? "bg-blue-600 text-white shadow-sm" : "text-white/60 hover:text-white"
                 )}
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Kartochkalar</span>
               </button>
             </div>
+
+            <button onClick={onClose} className="hidden sm:flex p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white cursor-pointer">
+              <X className="h-6 w-6" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white cursor-pointer">
-            <X className="h-6 w-6" />
-          </button>
         </div>
 
         {/* Filters */}

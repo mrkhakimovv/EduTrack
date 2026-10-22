@@ -410,7 +410,7 @@ export default function App() {
   const activeTeacherIdKey = selectedTeacherObj ? (selectedTeacherObj.uid || selectedTeacherObj.id) : 'none';
 
   return (
-    <div className="gradient-bg min-h-screen flex flex-col h-screen overflow-hidden">
+    <div className="gradient-bg min-h-[100dvh] md:h-screen flex flex-col overflow-x-hidden md:overflow-hidden">
       <Header 
         onCreateGroup={openCreateGroup}
         onAddStudent={openCreateStudent}
@@ -421,51 +421,53 @@ export default function App() {
         teachersCount={teachersList.length}
       />
 
-      <main className="flex-1 p-4 sm:p-6 flex flex-col gap-6 overflow-hidden max-w-[1400px] w-full mx-auto">
+      <main className="flex-1 p-3 sm:p-6 pb-24 md:pb-6 flex flex-col gap-3 sm:gap-6 md:overflow-hidden max-w-[1400px] w-full mx-auto">
         {appUser && appUser.role !== 'admin' && !appUser.isUnlimited && !appUser.appPayments?.[`${new Date().getFullYear()}-${new Date().getMonth()}`] && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 w-full shrink-0 shadow-lg shadow-black/10">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3.5 sm:p-4 flex items-start gap-3 w-full shrink-0 shadow-lg shadow-black/10">
             <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-red-400 font-medium">To'lov haqida ogohlantirish</h4>
-              <p className="text-white/70 text-sm mt-1">Siz joriy oy uchun dasturdan foydalanish to'lovini amalga oshirmadingiz. Iltimos, tez orada to'lovni amalga oshiring.</p>
+              <h4 className="text-red-400 font-medium text-sm sm:text-base">To'lov haqida ogohlantirish</h4>
+              <p className="text-white/70 text-xs sm:text-sm mt-1">Siz joriy oy uchun dasturdan foydalanish to'lovini amalga oshirmadingiz. Iltimos, tez orada to'lovni amalga oshiring.</p>
             </div>
           </div>
         )}
-        <div className="flex flex-col md:flex-row gap-6 h-full min-h-0">
-          <div className="w-full md:w-72 flex flex-col gap-4 shrink-0 h-full min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar">
-            <div className="glass-card rounded-2xl p-4 flex flex-col gap-3 border border-white/10 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                  appUser?.role === 'center_admin' 
-                    ? 'bg-blue-500/20 text-blue-400' 
-                    : 'bg-primary/20 text-primary'
-                }`}>
-                  {appUser?.role === 'center_admin' ? (
-                    <Building2 className="w-5 h-5" />
-                  ) : (
-                    <User className="w-5 h-5" />
-                  )}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-white truncate mb-0.5">
-                    {appUser?.centerName || appUser?.fullName || 'Foydalanuvchi'}
-                  </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex flex-col md:flex-row gap-3 sm:gap-6 flex-1 md:h-full min-h-0">
+          <div className="w-full md:w-72 flex flex-col gap-3 sm:gap-4 shrink-0 md:h-full min-h-0 md:overflow-hidden">
+            <div className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2.5 sm:gap-3 border border-white/10 shrink-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    appUser?.role === 'center_admin' 
+                      ? 'bg-blue-500/20 text-blue-400' 
+                      : 'bg-primary/20 text-primary'
+                  }`}>
                     {appUser?.role === 'center_admin' ? (
-                      <>
-                        <span className="text-[10px] text-blue-300 font-semibold px-1.5 py-0.2 rounded bg-blue-500/20 border border-blue-500/30">
-                          Markaz
-                        </span>
-                        <span className="text-[10px] text-white/50 font-mono tracking-wider">
-                          {appUser.centerCode || 'CTR'}
-                        </span>
-                      </>
+                      <Building2 className="w-5 h-5" />
                     ) : (
-                      <>
-                        <span className="text-[10px] text-white/70 truncate max-w-[120px]">{appUser?.fullName}</span>
-                        <span className="text-[10px] text-white/40 font-mono">{appUser?.teacherId || 'N/A'}</span>
-                      </>
+                      <User className="w-5 h-5" />
                     )}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-semibold text-white truncate mb-0.5">
+                      {appUser?.centerName || appUser?.fullName || 'Foydalanuvchi'}
+                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {appUser?.role === 'center_admin' ? (
+                        <>
+                          <span className="text-[10px] text-blue-300 font-semibold px-1.5 py-0.2 rounded bg-blue-500/20 border border-blue-500/30">
+                            Markaz
+                          </span>
+                          <span className="text-[10px] text-white/50 font-mono tracking-wider">
+                            {appUser.centerCode || 'CTR'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-[10px] text-white/70 truncate max-w-[140px]">{appUser?.fullName}</span>
+                          <span className="text-[10px] text-white/40 font-mono">{appUser?.teacherId || 'N/A'}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -493,7 +495,7 @@ export default function App() {
 
             {/* Attached Teachers Account Selector Card (Below MonthSelector) */}
             {appUser?.role === 'center_admin' && (
-              <div className="glass-card rounded-2xl p-3.5 flex flex-col gap-2.5 border border-white/10 flex-1 min-h-[180px] overflow-hidden mb-8">
+              <div className="glass-card rounded-2xl p-3 sm:p-3.5 flex flex-col gap-2 sm:gap-2.5 border border-white/10 md:flex-1 md:min-h-[180px] overflow-hidden md:mb-8">
                 <div className="flex items-center justify-between px-0.5 shrink-0">
                   <div className="flex items-center gap-2">
                     <GraduationCap className="w-4 h-4 text-purple-400" />
@@ -503,9 +505,9 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
+                <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto md:flex-1 custom-scrollbar pb-1 md:pb-0 md:pr-1">
                   {teacherAccountsSummary.length === 0 ? (
-                    <div className="text-center py-6 px-2 text-xs text-white/40">
+                    <div className="text-center py-3 md:py-6 px-2 text-xs text-white/40 w-full">
                       Hali o'qituvchilar biriktirilmagan
                     </div>
                   ) : (
@@ -517,7 +519,7 @@ export default function App() {
                           type="button"
                           onClick={() => setSelectedTeacherAccountId(item.id)}
                           className={cn(
-                            "w-full text-left p-2.5 rounded-xl border transition-all flex flex-col gap-1.5 cursor-pointer",
+                            "min-w-[215px] sm:min-w-[240px] md:min-w-0 md:w-full shrink-0 text-left p-2.5 rounded-xl border transition-all flex flex-col gap-1.5 cursor-pointer",
                             isSelected
                               ? "bg-purple-600/25 border-purple-400/60 shadow-lg shadow-purple-950/40 ring-1 ring-purple-400/40"
                               : "bg-white/[0.04] border-white/10 hover:bg-white/[0.09]"
@@ -582,10 +584,10 @@ export default function App() {
             )}
           </div>
 
-          <div key={activeTeacherIdKey} className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <div key={activeTeacherIdKey} className="flex-1 flex flex-col md:overflow-hidden min-w-0">
             {/* Active Teacher Account Header Banner */}
             {appUser?.role === 'center_admin' && selectedTeacherObj && (
-              <div className="mb-3 px-4 py-2.5 rounded-2xl bg-purple-600/20 border border-purple-400/40 flex flex-wrap items-center justify-between gap-2 shrink-0">
+              <div className="mb-3 px-3.5 sm:px-4 py-2.5 rounded-2xl bg-purple-600/20 border border-purple-400/40 flex flex-wrap items-center justify-between gap-2 shrink-0">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-lg bg-purple-500/30 border border-purple-300/40 flex items-center justify-center text-purple-200 font-bold text-xs shrink-0">
                     <GraduationCap className="w-4 h-4" />

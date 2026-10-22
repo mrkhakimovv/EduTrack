@@ -67,18 +67,7 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
   };
 
   return (
-    <div className={cn(
-      "flex flex-col gap-6 relative h-full overflow-y-auto custom-scrollbar p-6",
-      "fixed inset-0 z-[60] bg-sys-base md:static md:z-auto md:bg-transparent"
-    )}>
-      {/* Mobile Header */}
-      <div className="flex md:hidden items-center gap-4 mb-2">
-        <button onClick={onClose} className="p-2 -ml-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors">
-          <ArrowLeft className="h-5 w-5 text-white/70" />
-        </button>
-        <h2 className="text-xl font-bold text-white">To'lov</h2>
-      </div>
-
+    <div className="flex flex-col gap-4 sm:gap-6 relative h-full overflow-y-auto custom-scrollbar p-4 sm:p-6">
       {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
@@ -101,23 +90,20 @@ export function PaymentTab({ data, monthKey, addPayment, onClose }: PaymentTabPr
           : 0;
 
         return (
-          <div className={cn(
-            "bg-primary/5 border border-primary/20 rounded-xl p-5 fade-in",
-            "fixed inset-0 z-[100] h-[100dvh] bg-sys-base flex flex-col md:static md:h-auto md:z-auto md:bg-primary/5 md:block p-4 sm:p-5 pt-6"
-          )}>
-            <div className="flex items-center justify-between mb-6 md:mb-4">
-              <h3 className="font-semibold text-xl md:text-lg text-white">
+          <div className="bg-primary/10 border border-primary/25 rounded-2xl p-4 sm:p-5 fade-in shadow-xl">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h3 className="font-semibold text-base sm:text-lg text-white">
                 {selectedStudent.fullName} uchun to'lov
               </h3>
               <button 
                 onClick={() => setSelectedStudent(null)}
-                className="text-sm text-white/50 hover:text-white px-3 py-1.5 bg-white/5 rounded-lg md:px-0 md:py-0 md:bg-transparent md:rounded-none"
+                className="text-xs sm:text-sm text-white/60 hover:text-white px-3 py-1.5 bg-white/5 rounded-lg md:px-0 md:py-0 md:bg-transparent md:rounded-none shrink-0 cursor-pointer"
               >
                 Bekor qilish
               </button>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 md:gap-4 items-end flex-1 md:flex-none">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4 items-end">
               <div className="sm:col-span-5 flex flex-col gap-1">
                 <label className="block text-sm md:text-xs text-white/50 mb-1 ml-1">Summa (so'm)</label>
                 <input
